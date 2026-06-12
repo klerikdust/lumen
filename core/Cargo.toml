@@ -1,5 +1,7 @@
 [package]
 name = "lumen-core"
+description = "Core library for Lumen"
+authors = ["Risuleia"]
 version = "0.1.0"
 edition = "2024"
 
@@ -8,7 +10,6 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "full"
 windows = { version = "0.62.2", features = [
     "Foundation",
     "Foundation_Collections",
-    "ApplicationModel",
     "UI_Notifications",
     "UI_Notifications_Management",
     "Data_Xml_Dom",

@@ -2580,6 +2580,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumen"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "i-slint-backend-winit",
+ "lumen-core",
+ "raw-window-handle",
+ "single-instance",
+ "slint",
+ "slint-build",
+ "tokio",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "lumen-compositor"
 version = "0.1.0"
 dependencies = [
@@ -2615,22 +2631,6 @@ dependencies = [
  "windows-core 0.62.2",
  "windows-future",
  "winreg",
-]
-
-[[package]]
-name = "lumen-ui"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "futures",
- "i-slint-backend-winit",
- "lumen-core",
- "raw-window-handle",
- "single-instance",
- "slint",
- "slint-build",
- "tokio",
- "windows 0.62.2",
 ]
 
 [[package]]

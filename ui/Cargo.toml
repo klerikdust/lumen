@@ -1,6 +1,8 @@
 [package]
-name = "lumen-ui"
+name = "lumen"
 version = "0.1.0"
+description = "Minimal Dynamic Island for Windows"
+authors = ["Risuleia"]
 edition = "2024"
 build = "build.rs"
 

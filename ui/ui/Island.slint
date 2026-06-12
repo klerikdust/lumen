@@ -1,17 +1,17 @@
 import { Colors } from "theme/Colors.slint";
 import { Metrics } from "theme/Metrics.slint";
 import { IslandContent } from "types.slint";
-import { Idle, Media, Notification } from "layouts/index.slint";
 import { IndicatorLayer } from "IndicatorLayer.slint";
 import { IslandData } from "global.slint";
+import { Idle } from "layouts/Idle.slint";
+import { Media } from "layouts/Media.slint";
+import { Notification } from "layouts/Notification.slint";
 
 export component Island inherits Rectangle {
     in property <IslandContent> content: IslandData.content;
 
     in property <length> y-anchor;
     in property <length> radius;
-
-    clip: true;
 
     private property <bool> has-active-content: root.content != IslandContent.Idle || IslandData.mic || IslandData.camera;
     private property <bool> timer-expired: true;
@@ -94,6 +94,10 @@ export component Island inherits Rectangle {
         border-width: Metrics.border-width;
         border-radius: radius;
         z: 1;
+
+        drop-shadow-color: Colors.island-shadow;
+        drop-shadow-blur: Colors.island-shadow-blur;
+        drop-shadow-offset-y: 2px;
 
         HorizontalLayout {
             width: parent.width;

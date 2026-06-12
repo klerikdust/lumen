@@ -2,7 +2,9 @@ import { IslandData } from "../global.slint";
 import { Metrics } from "../theme/Metrics.slint";
 import { Colors } from "../theme/Colors.slint";
 import { Assets } from "../global.slint";
-import { MediaControls, SpectrumBars, Timeline } from "../components/index.slint";
+import { SpectrumBars } from "../components/SpectrumBars.slint";
+import { MediaControls } from "../components/MediaControls.slint";
+import { Timeline } from "../components/Timeline.slint";
 
 component CollapsedMedia inherits HorizontalLayout {
     alignment: space-between;
@@ -157,7 +159,7 @@ component ExpandedMedia inherits VerticalLayout {
                     horizontal-alignment: left;
                 }
     
-                media-controls := MediaControls {
+                MediaControls {
                     col: 1;
                 }
     

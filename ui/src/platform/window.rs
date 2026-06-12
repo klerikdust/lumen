@@ -5,13 +5,12 @@ use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use slint::ComponentHandle;
 use windows::Win32::{
     Foundation::{HWND, RECT},
-    UI::WindowsAndMessaging::{
-        GWL_EXSTYLE, GWL_STYLE, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect, HWND_TOPMOST, LWA_ALPHA, SM_CXSCREEN, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetLayeredWindowAttributes, SetWindowLongPtrW, SetWindowPos, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_POPUP, WS_VISIBLE
-    },
-    UI::HiDpi::GetDpiForWindow
+    UI::{HiDpi::GetDpiForWindow, WindowsAndMessaging::{
+        GWL_EXSTYLE, GWL_STYLE, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect, HWND_TOPMOST, LWA_ALPHA, SM_CXSCREEN, SW_HIDE, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetLayeredWindowAttributes, SetWindowLongPtrW, SetWindowPos, ShowWindow, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_POPUP
+    }}
 };
 
-use crate::{geometry::SHELL_WIDTH, platform::{clickthrough::WINDOW_HWND, cursor::{cursor_position, point_inside_pill}, set_clickthrough}, state::IslandState};
+use crate::{geometry::SHELL_WIDTH, platform::{clickthrough::WINDOW_HWND, cursor::{cursor_position, point_inside_pill}, fullscreen::is_foreground_fullscreen, set_clickthrough}, state::{ContentState, IslandState}};
 
 pub fn initialize_window<T>(
     component: &T, 
@@ -33,6 +32,9 @@ where
                 
                 WINDOW_HWND.set(hwnd.0 as isize).ok();
                 set_clickthrough(hwnd, true);
+                
+                let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+
                 start_clickthrough_loop(hwnd, state.clone(), get_collapsed);
             });
         }
@@ -54,7 +56,7 @@ where
 }
 
 unsafe fn configure_window(hwnd: HWND) {
-    let style = WS_POPUP.0 as isize | WS_VISIBLE.0 as isize;
+    let style = WS_POPUP.0 as isize;
 
     unsafe {
         SetWindowLongPtrW(hwnd, GWL_STYLE, style);
@@ -113,19 +115,39 @@ unsafe fn start_clickthrough_loop(
     
     let mut clickthrough_enabled = true;
     
+    let mut hidden_for_fullscreen = false;
+
     timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(16),
         move || {
+            let fullscreen = is_foreground_fullscreen(hwnd);
+            if fullscreen {
+                if !hidden_for_fullscreen {
+                    let _ = unsafe { ShowWindow(hwnd, SW_HIDE) };
+                    hidden_for_fullscreen = true;
+                }
+
+                return;
+            }
+
+            if hidden_for_fullscreen {
+                let _ = unsafe { ShowWindow(hwnd, SW_SHOWNOACTIVATE) };
+                hidden_for_fullscreen = false;
+            }
+
             let (mx, my) = cursor_position();
             
             let mut rect = RECT::default();
             
             unsafe { GetWindowRect(hwnd, &mut rect).ok(); }
 
-            let logical = {
+            let (logical, has_active) = {
                 let state = state.lock().unwrap();
-                state.clone().bounds()
+                (
+                    state.clone().bounds(),
+                    state.mic || state.camera || state.content != ContentState::Idle
+                )
             };
             let collapsed = get_collapsed();
             
@@ -145,12 +167,12 @@ unsafe fn start_clickthrough_loop(
             let px = mx - island_left;
             let py = my - island_top;
 
-            let inside = if !collapsed && bounds.y < 0 {
+            let inside = if !collapsed && !has_active {
                 false
             } else {
                 point_inside_pill(px, py, bounds.width, bounds.height, bounds.radius)
             };
-                
+
             unsafe {
                 if inside && clickthrough_enabled {
                     set_clickthrough(hwnd, false);

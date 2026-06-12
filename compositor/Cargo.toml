@@ -1,5 +1,7 @@
 [package]
 name = "lumen-compositor"
+description = "Liquid Glass compositor for Lumen"
+authors = ["Risuleia"]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.92"

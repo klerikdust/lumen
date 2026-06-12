@@ -30,9 +30,7 @@ fn main() -> Result<()> {
     let mut app = Lumen::new();
 
     let state = app.state().clone();
-
     let shell = Shell::new().unwrap();
-
     let weak = shell.as_weak();
 
     initialize_window(
