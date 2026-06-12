@@ -1,36 +1,43 @@
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use windows::{UI::Notifications::{Management::{UserNotificationListener, UserNotificationListenerAccessStatus}, NotificationKinds}, Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx}};
+use windows::{
+    UI::Notifications::{
+        Management::{UserNotificationListener, UserNotificationListenerAccessStatus}, NotificationKinds, UserNotification
+    },
+    Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx},
+};
 
-use crate::{CoreEvent, NotificationState, bus::EventSender, runtime::RuntimeState, services::Service, utils::icon::resolve_app_icon};
+use crate::{
+    CoreEvent, NotificationState,
+    bus::EventSender,
+    runtime::RuntimeState,
+    services::Service,
+    utils::{icon::resolve_app_icon, name::resolve_name_from_aumid},
+};
 
 pub struct NotificationService {
-    seen: HashSet<u32>
+    seen: HashSet<u32>,
+    initialized: bool,
 }
 
 #[async_trait]
 impl Service for NotificationService {
     fn new() -> Self {
-        Self { seen: HashSet::new() }
+        Self {
+            seen: HashSet::new(),
+            initialized: false,
+        }
     }
 
-    async fn run(
-        mut self,
-        tx: EventSender,
-        runtime: Arc<RuntimeState>
-    ) {
+    async fn run(mut self, tx: EventSender, runtime: Arc<RuntimeState>) {
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
 
         let listener = UserNotificationListener::Current().unwrap();
 
-        let access = listener
-            .RequestAccessAsync()
-            .unwrap()
-            .await
-            .unwrap();
+        let access = listener.RequestAccessAsync().unwrap().await.unwrap();
 
         if access != UserNotificationListenerAccessStatus::Allowed {
             eprintln!("Notification access denied");
@@ -38,65 +45,59 @@ impl Service for NotificationService {
         }
 
         loop {
-            let notifications = listener
-                .GetNotificationsAsync(NotificationKinds::Toast)
-                .unwrap()
-                .await
-                .unwrap();
+            let mut notifications_to_process = Vec::new();
 
-            for notification in notifications {
-                let id = notification.Id().unwrap();
+            {
+                let notifications = listener
+                    .GetNotificationsAsync(NotificationKinds::Toast)
+                    .unwrap()
+                    .await
+                    .unwrap();
 
-                if self.seen.contains(&id) {
-                    continue;
-                }
+                for notification in notifications {
+                    let id = notification.Id().unwrap();
 
-                self.seen.insert(id);
-
-                let app_name = notification
-                    .AppInfo()
-                    .ok()
-                    .and_then(|a| a.DisplayInfo().ok())
-                    .and_then(|d| d.DisplayName().ok())
-                    .map(|s| s.to_string())
-                    .unwrap_or_default();
-
-                let app_id = notification
-                    .AppInfo()
-                    .ok()
-                    .and_then(|a| a.AppUserModelId().ok())
-                    .map(|s| s.to_string())
-                    .unwrap_or_default();
-
-                let mut title = String::new();
-                let mut body = String::new();
-
-                if let Ok(toast) = notification.Notification() {
-                    if let Ok(visual) = toast.Visual() {
-                        if let Ok(bindings) = visual.Bindings() {
-                            if let Some(binding) = bindings.into_iter().next() {
-                                if let Ok(texts) = binding.GetTextElements() {
-                                    let mut texts = texts.into_iter();
-
-                                    if let Some(t) = texts.next() {
-                                        title = t.Text().unwrap_or_default().to_string();
-                                    }
-
-                                    if let Some(t) = texts.next() {
-                                        body = t.Text().unwrap_or_default().to_string();
-                                    }
-                                }
-                            }
-                        }
+                    if self.seen.contains(&id) {
+                        continue;
                     }
+
+                    self.seen.insert(id);
+
+                    if !self.initialized {
+                        continue;
+                    }
+
+                    let app_id = notification
+                        .AppInfo()
+                        .ok()
+                        .and_then(|a| a.AppUserModelId().ok())
+                        .map(|s| s.to_string())
+                        .unwrap_or_default();
+
+                    let (title, body) = parse_notification(notification);
+
+                    notifications_to_process.push((app_id, title, body));
                 }
+            }
+
+            for (app_id, title, body) in notifications_to_process {
+                let app_id_clone = app_id.clone();
+                let app_icon = tokio::task::spawn_blocking(move || {
+                    tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap()
+                        .block_on(resolve_app_icon(&app_id_clone))
+                })
+                .await
+                .unwrap_or(None);
 
                 let state = NotificationState {
                     id: runtime.notifications.lock().unwrap().len() as u64,
-                    app_name,
+                    app_name: resolve_name_from_aumid(&app_id),
+                    app_icon: app_icon,
                     title,
                     body,
-                    image: resolve_app_icon(&app_id).ok().flatten(),
                 };
 
                 runtime
@@ -106,30 +107,41 @@ impl Service for NotificationService {
                     .push_back(state.clone());
 
                 let _ = tx.send(CoreEvent::NotificationReceived(state.clone()));
-
-                let runtime = runtime.clone();
-                let tx = tx.clone();
-
-                let id = state.id;
-
-                std::thread::spawn(move || {
-                    std::thread::sleep(
-                        Duration::from_secs(4)
-                    );
-
-                    runtime
-                        .notifications
-                        .lock()
-                        .unwrap()
-                        .retain(|n| n.id != id);
-
-                    let _ = tx.send(
-                        CoreEvent::Arbitrary
-                    );
-                });
             }
 
-            std::thread::sleep(Duration::from_millis(500));
+            self.initialized = true;
+
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
     }
+}
+
+fn parse_notification(notification: UserNotification) -> (String, String) {
+    let mut title = String::new();
+    let mut body = Vec::new();
+
+    if let Ok(toast) = notification.Notification() {
+        if let Ok(visual) = toast.Visual() {
+            if let Ok(bindings) = visual.Bindings() {
+                if let Some(binding) = bindings.into_iter().next() {
+                    if let Ok(texts) = binding.GetTextElements() {
+                        for (idx, text) in texts.into_iter().enumerate() {
+                            if let Ok(win_str) = text.Text() {
+                                let text_content = win_str.to_string();
+                                if idx == 0 {
+                                    title = text_content;
+                                } else if !text_content.is_empty() {
+                                    body.push(text_content);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let joined_body = body.join("\n");
+
+    (title, joined_body)
 }

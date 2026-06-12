@@ -1,10 +1,10 @@
-use std::{sync::Arc, time::{Duration, Instant}};
+use std::{sync::Arc, time::{Duration, SystemTime}};
 
 use anyhow::Result;
 use async_trait::async_trait;
 use windows::{Media::Control::{GlobalSystemMediaTransportControlsSession, GlobalSystemMediaTransportControlsSessionManager, GlobalSystemMediaTransportControlsSessionPlaybackStatus}, Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx}};
 
-use crate::{CoreEvent, MediaState, bus::EventSender, runtime::RuntimeState, services::Service, utils::{artwork::extract_album_art, icon::resolve_app_icon}};
+use crate::{CoreEvent, MediaState, bus::EventSender, runtime::RuntimeState, services::Service, utils::{artwork::extract_album_art, icon::resolve_app_icon, name::resolve_name_from_aumid}};
 
 pub struct MediaService {
     current: Option<MediaState>,
@@ -21,7 +21,6 @@ impl Service for MediaService {
         tx: EventSender,
         runtime: Arc<RuntimeState>
     ) {
-        
         loop {
             let result = tokio::task::spawn_blocking(move || {
                 unsafe {
@@ -98,16 +97,17 @@ async fn build_media_state(
     let playing = 
         playback == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;
 
-    let app_name = session
+    let app_id = session
         .SourceAppUserModelId()?
         .to_string();
 
-    let app_icon = resolve_app_icon(&app_name.clone()).ok().flatten();
-
-    let synced_at = Instant::now();
+    let last_updated_filetime = timeline.LastUpdatedTime()?;
+    let win32_ticks = last_updated_filetime.UniversalTime;
+    let unix_ms = (win32_ticks / 10_000) - 11_644_473_600_000;
+    let synced_at = SystemTime::UNIX_EPOCH + Duration::from_millis(unix_ms as u64);
 
     Ok(MediaState {
-        app_name,
+        app_name: resolve_name_from_aumid(&app_id),
 
         title: props.Title()?.to_string(),
         artist: props.Artist()?.to_string(),
@@ -120,8 +120,8 @@ async fn build_media_state(
 
         playing,
 
-        app_icon,
-        
+        app_icon: resolve_app_icon(&app_id).await,
+
         synced_at
     })
 }

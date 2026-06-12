@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+pub mod name;
 pub mod artwork;
 pub mod icon;
 

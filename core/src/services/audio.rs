@@ -19,7 +19,7 @@ pub struct AudioSpectrumService;
 
 #[async_trait]
 impl Service for AudioSpectrumService {
-    fn new() -> Self { AudioSpectrumService }
+    fn new() -> Self { Self }
 
     async fn run(
         self,

@@ -22,16 +22,17 @@ impl Lumen {
         Self {
             state: Arc::new(Mutex::new(IslandState::new())),
             shell: None,
-            core: Arc::new(IslandCore::new())
+            core: Arc::new(IslandCore::new()),
         }
     }
 
     pub fn start(&mut self, shell: &Shell) -> Result<()> {
         self.attach_shell(shell);
         self.attach_core();
-        
-        self.attach_spectrum();
-        
+
+        self.attach_tick();
+        self.attach_actions();
+
         self.core.start();
 
         self.dispatch();
@@ -130,10 +131,7 @@ impl Lumen {
                     global.set_content(IslandContent::Media);
                 }
                 ContentState::Notification(n) => {
-                    global.set_notification(notification_to_slint(
-                        n, 
-                        &assets.get_fallback_app())
-                    );
+                    global.set_notification(notification_to_slint(n, &assets.get_fallback_app()));
                     global.set_content(IslandContent::Notification);
                 }
             }
@@ -145,20 +143,86 @@ impl Lumen {
         }
     }
 
-    fn attach_spectrum(&self) {
+    fn attach_tick(&self) {
         let runtime = self.runtime();
 
         if let Some(shell) = self.shell.as_ref().and_then(|s| s.upgrade()) {
             let weak = shell.as_weak();
 
-            shell.on_spectrum_tick(move || {
+            shell.on_tick(move || {
                 let Some(shell) = weak.upgrade() else {
                     return;
                 };
+
                 let global = shell.global::<IslandData>();
-                let spectrum = runtime.spectrum.read().unwrap();
-                global.set_spectrum((&spectrum[..]).into());
+
+                let spectrum = {
+                    let spectrum = runtime.spectrum.read().unwrap();
+                    (&spectrum[..]).into()
+                };
+                global.set_spectrum(spectrum);
+
+                let media = { runtime.media.read().unwrap().clone() };
+                if let Some(media) = media {
+                    global.set_media_position(media.current_position_ms() as i32);
+                };
             });
+        }
+    }
+
+    fn attach_actions(&self) {
+        let Some(shell) = self.shell.as_ref().and_then(|s| s.upgrade()) else {
+            return;
+        };
+
+        let lumen = self.clone();
+
+        shell
+            .global::<IslandData>()
+            .on_action(move |action, payload| {
+                lumen.handle_action(&action, &payload);
+            });
+    }
+
+    fn handle_action(&self, action: &str, payload: &str) {
+        match action {
+            "expand" => {
+                self.set_expanded(payload == "true");
+                self.sync_shell();
+            }
+            "dismiss-notification" => {
+                let Ok(id) = payload.parse::<u64>() else { return; };
+                self.core.dismiss_notification(id);
+            }
+            "toggle-playback" => {
+                let core = self.core.clone();
+                std::thread::spawn(move || {
+                    let _ = futures::executor::block_on(core.toggle_playback());
+                });
+            }
+            "next" => {
+                let core = self.core.clone();
+                std::thread::spawn(move || {
+                    let _ = futures::executor::block_on(core.next());
+                });
+            }
+            "previous" => {
+                let core = self.core.clone();
+                std::thread::spawn(move || {
+                    let _ = futures::executor::block_on(core.previous());
+                });
+            }
+            "seek" => {
+                let Ok(position) = payload.parse::<u64>() else { return; };
+                let core = self.core.clone();
+                std::thread::spawn(move || {
+                    let _ = futures::executor::block_on(core.seek(position));
+                });
+            }
+
+            _ => {
+                eprintln!("[Lumen] Unknown action: {action} ({payload})");
+            }
         }
     }
 

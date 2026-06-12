@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::SystemTime;
 
 #[derive(Debug, Clone)]
 pub enum CoreEvent {
@@ -17,18 +17,21 @@ pub enum CoreEvent {
     Arbitrary
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NotificationState {
     pub id: u64,
 
     pub app_name: String,
+    pub app_icon: Option<String>,
+    
     pub title: String,
     pub body: String,
-    pub image: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct MediaState {
+    pub synced_at: SystemTime,
+
     pub app_name: String,
 
     pub title: String,
@@ -43,16 +46,46 @@ pub struct MediaState {
     pub playing: bool,
 
     pub app_icon: Option<String>,
-
-    pub synced_at: Instant
 }
 
 impl MediaState {
     pub fn current_position_ms(&self) -> u64 {
-        if self.playing {
-            self.position_ms + self.synced_at.elapsed().as_millis() as u64
-        } else {
-            self.position_ms
+        if !self.playing {
+            return self.position_ms;
         }
+
+        match SystemTime::now().duration_since(self.synced_at) {
+            Ok(elapsed) => {
+                let local_elapsed_ms = elapsed.as_millis() as u64;
+                (self.position_ms + local_elapsed_ms).min(self.duration_ms)
+            }
+            Err(_) => {
+                self.position_ms
+            }
+        }
+    }
+}
+
+impl PartialEq for MediaState {
+    fn eq(&self, other: &Self) -> bool {
+        self.app_name == other.app_name &&
+        self.title == other.title &&
+        self.artist == other.artist &&
+        self.album == other.album &&
+        self.album_art == other.album_art &&
+        self.duration_ms == other.duration_ms &&
+        self.playing == other.playing &&
+        self.app_icon == other.app_icon 
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.app_name != other.app_name ||
+        self.title != other.title ||
+        self.artist != other.artist ||
+        self.album != other.album ||
+        self.album_art != other.album_art ||
+        self.duration_ms != other.duration_ms ||
+        self.playing != other.playing ||
+        self.app_icon != other.app_icon 
     }
 }

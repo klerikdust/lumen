@@ -18,12 +18,12 @@ impl IslandState {
             content: ContentState::Idle,
             mic: false,
             camera: false,
-            expanded: true
+            expanded: false
         }
     }
 
     pub fn bounds(&self) -> IslandBounds {
-        match (&self.content, self.expanded) {
+        let bounds = match (&self.content, self.expanded) {
             (ContentState::Idle, _) => IslandBounds {
                 y: -48,
                 width: 180,
@@ -56,12 +56,14 @@ impl IslandState {
                 height: 180,
                 radius: 24,
             },
-        }
+        };
+
+        bounds
     }
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ContentState {
     Idle,
     Media(MediaState),

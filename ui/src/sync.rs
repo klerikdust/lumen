@@ -33,7 +33,6 @@ pub fn media_to_slint(
         playing: media.playing,
 
         duration_ms: media.duration_ms as i32,
-        position_ms: media.position_ms as i32,
     }
 }
 
@@ -42,8 +41,10 @@ pub fn notification_to_slint(
     fallback_app: &Image,
 ) -> SlintNotificationState {
     SlintNotificationState {
+        id: SharedString::from(notif.id.to_string()),
+
         app_name: SharedString::from(notif.app_name.clone()),
-        image: load_image(notif.image.as_deref(), fallback_app),
+        app_icon: load_image(notif.app_icon.as_deref(), fallback_app),
         
         title: SharedString::from(notif.title.clone()),
         body: SharedString::from(notif.body.clone()),

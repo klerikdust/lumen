@@ -17,7 +17,8 @@ pub fn initialize_window<T>(
     component: &T, 
     width: i32, 
     height: i32,
-    state: Arc<Mutex<IslandState>>
+    state: Arc<Mutex<IslandState>>,
+    get_collapsed: impl Fn() -> bool + Send + 'static
 )
 where
     T: ComponentHandle + 'static,
@@ -32,7 +33,7 @@ where
                 
                 WINDOW_HWND.set(hwnd.0 as isize).ok();
                 set_clickthrough(hwnd, true);
-                start_clickthrough_loop(hwnd, state.clone());
+                start_clickthrough_loop(hwnd, state.clone(), get_collapsed);
             });
         }
     });
@@ -103,7 +104,11 @@ unsafe fn position_top_center(hwnd: HWND, width: i32, height: i32) {
     }
 }
 
-unsafe fn start_clickthrough_loop(hwnd: HWND, state: Arc<Mutex<IslandState>>) {
+unsafe fn start_clickthrough_loop(
+    hwnd: HWND, 
+    state: Arc<Mutex<IslandState>>, 
+    get_collapsed: impl Fn() -> bool + Send + 'static
+) {
     let timer = Box::leak(Box::new(slint::Timer::default()));
     
     let mut clickthrough_enabled = true;
@@ -122,6 +127,7 @@ unsafe fn start_clickthrough_loop(hwnd: HWND, state: Arc<Mutex<IslandState>>) {
                 let state = state.lock().unwrap();
                 state.clone().bounds()
             };
+            let collapsed = get_collapsed();
             
             let dpi = unsafe { GetDpiForWindow(hwnd) };
             let scale_factor = dpi as f64 / 96.0;
@@ -130,18 +136,20 @@ unsafe fn start_clickthrough_loop(hwnd: HWND, state: Arc<Mutex<IslandState>>) {
             let island_x = (SHELL_WIDTH - bounds.width) / 2;
             
             let island_left = rect.left + island_x;
-            let island_top = rect.top + bounds.y;
+            let island_top = rect.top + if collapsed {
+                ((-(logical.height - 10)) as f64 * scale_factor).round() as i32
+            } else {
+                0
+            };
 
             let px = mx - island_left;
             let py = my - island_top;
-            
-            let inside = point_inside_pill(
-                px, 
-                py, 
-                bounds.width, 
-                bounds.height, 
-                bounds.radius
-            );
+
+            let inside = if !collapsed && bounds.y < 0 {
+                false
+            } else {
+                point_inside_pill(px, py, bounds.width, bounds.height, bounds.radius)
+            };
                 
             unsafe {
                 if inside && clickthrough_enabled {

@@ -11,20 +11,26 @@ export component Island inherits Rectangle {
     in property <length> y-anchor;
     in property <length> radius;
 
-    background: Colors.island-bg;
-    border-color: Colors.island-border;
-    border-width: Metrics.border-width;
-    border-radius: radius;
     clip: true;
 
     private property <bool> has-active-content: root.content != IslandContent.Idle || IslandData.mic || IslandData.camera;
-    private property <bool> timer-expired: false;
+    private property <bool> timer-expired: true;
+
+    private property <bool> collapsed: 
+        root.has-active-content &&
+        !IslandData.expanded &&
+        root.timer-expired &&
+        !ta.has-hover;
+
+    changed collapsed => {
+        IslandData.collapsed = collapsed;
+    }
     
     y: root.has-active-content 
         ? (IslandData.expanded || ta.has-hover || !root.timer-expired)
-            ? ((IslandData.mic || IslandData.camera) && content == IslandContent.Idle ? 8px : root.y-anchor)
+            ? ((IslandData.mic || IslandData.camera) && content == IslandContent.Idle ? 0 : root.y-anchor - 8px)
             : -(root.height - 8px)
-        : root.y-anchor;
+        : root.y-anchor - 8px;
 
     animate width, height, y {
         duration: 450ms;
@@ -41,11 +47,23 @@ export component Island inherits Rectangle {
         }
     }
 
+    notification-timer := Timer {
+        interval: 3000ms;
+        triggered => {
+            if (content == IslandContent.Notification && !IslandData.expanded) {
+                IslandData.action("dismiss-notification", IslandData.notification.id);
+            }
+
+            self.running = false;
+        }
+    }
+
     private property <int> state-trigger: 
         (root.content == IslandContent.Idle ? 0 : root.content == IslandContent.Media ? 1 : 2)
         + (IslandData.mic ? 10 : 0)
         + (IslandData.camera ? 20 : 0)
-        + (IslandData.expanded ? 40 : 0);
+        + (IslandData.expanded ? 40 : 0)
+        + (Math.round(IslandData.notification.id.to-float()));
 
     changed state-trigger => {
         if (IslandData.expanded) {
@@ -58,29 +76,48 @@ export component Island inherits Rectangle {
             visibility-timer.running = false;
             root.timer-expired = true;
         }
+
+        if (content == IslandContent.Notification && !IslandData.expanded) {
+            notification-timer.running = true;
+        } else {
+            notification-timer.running = false;
+        }
     }
 
-    HorizontalLayout {
+    island := Rectangle {
         width: parent.width;
-        height: parent.height;
-        
-        padding-left: 1.5rem;
-        padding-right: 1.5rem;
-        padding-top: IslandData.expanded ? 1.5rem : 0.8rem;
-        padding-bottom: IslandData.expanded ? 1.5rem : 0.8rem;
+        height: parent.height - 8px;
+        y: 8px;
 
-        spacing: 1.5rem;
+        background: Colors.island-bg;
+        border-color: Colors.island-border;
+        border-width: Metrics.border-width;
+        border-radius: radius;
+        z: 1;
 
-        if content == IslandContent.Idle: Idle {}
-        if content == IslandContent.Media: Media {}
-        if content == IslandContent.Notification: Notification {}
+        HorizontalLayout {
+            width: parent.width;
+            height: parent.height;
+            
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+            padding-top: IslandData.expanded ? 1.5rem : 0.8rem;
+            padding-bottom: IslandData.expanded ? 1.5rem : 0.8rem;
     
-        if !IslandData.expanded && (IslandData.mic || IslandData.camera): IndicatorLayer {}
+            spacing: 1.5rem;
+    
+            if content == IslandContent.Idle: Idle {}
+            if content == IslandContent.Media: Media {}
+            if content == IslandContent.Notification: Notification {}
+        
+            if !IslandData.expanded && (IslandData.mic || IslandData.camera): IndicatorLayer {}
+        }
     }
 
     ta := TouchArea {
         width: parent.width;
         height: parent.height;
+        z: 0;
 
         changed has-hover => {
             if (!self.has-hover && root.has-active-content && !IslandData.expanded) {
@@ -91,7 +128,21 @@ export component Island inherits Rectangle {
 
         clicked => {
             if (root.content != IslandContent.Idle) {
-                IslandData.action("expand", "true")
+                IslandData.action("expand", "true");
+            }
+        }
+    }
+    
+    fs := FocusScope {
+        width: parent.width;
+        height: parent.height;
+        
+        focus-changed-event(_) => {
+            if (!self.has-focus && IslandData.expanded) {
+                IslandData.action("expand", "false");
+                if (content == IslandContent.Notification) {
+                    IslandData.action("dismiss-notification", IslandData.notification.id);   
+                }
             }
         }
     }

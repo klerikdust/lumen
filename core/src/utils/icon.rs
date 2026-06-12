@@ -1,272 +1,188 @@
-use std::{ffi::OsStr, fs, os::windows::ffi::OsStrExt, path::{Path, PathBuf}};
+use std::{fs, path::{Path, PathBuf}};
 
-use anyhow::{Result, anyhow};
-use image::{ImageBuffer, Rgba};
-use quick_xml::Reader;
-use sysinfo::System;
-use windows::Win32::{Graphics::Gdi::{BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDIBits, GetObjectW, HBITMAP, HDC}, UI::{Shell::{SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON, SHGetFileInfoW}, WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON, ICONINFO}}};
-use windows_core::PCWSTR;
-use winreg::{RegKey, enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE}};
+use anyhow::Result;
+use image::{DynamicImage, GenericImageView};
+use windows::{ApplicationModel::AppInfo, Foundation::Size, Storage::Streams::{Buffer, DataReader, InputStreamOptions}, Win32::{Foundation::SIZE, Graphics::Gdi::{BI_RGB, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC, GetDIBits, HBITMAP, ReleaseDC}, UI::Shell::{IShellItem2, IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_RESIZETOFIT}}};
+use windows_core::{HSTRING, Interface, PCWSTR};
 
-use crate::utils::cache_dir;
+use crate::utils::{cache_dir, name::resolve_name_from_aumid};
 
-pub fn resolve_app_icon(app_id: &str) -> Result<Option<String>> {
-    let cache_path = cache_path(app_id);
+pub async fn resolve_app_icon(aumid: &str) -> Option<String> {
+    let cache_path = cache_path(aumid);
 
     if cache_path.exists() {
-        return Ok(Some(cache_path.to_string_lossy().to_string()));
+        return Some(cache_path.to_string_lossy().to_string());
     }
 
-    if app_id.contains("!") {
-        resolve_packaged_icon(app_id, &cache_path)
-    } else {
-        resolve_win32_icon(app_id, &cache_path)
-    }
+    if let Ok(path) = get_logo(aumid, &cache_path).await { return path; }
+    if let Ok(path) = get_win32_icon(aumid, &cache_path).await { return path;}
+
+    None
 }
 
-fn resolve_packaged_icon(app_id: &str, cache_path: &Path) -> Result<Option<String>> {
+
+async fn get_logo(aumid: &str, cache_path: &Path) -> Result<Option<String>> {
     if cache_path.exists() {
         return Ok(Some(cache_path.to_string_lossy().to_string()));
     }
 
-    let pfn = package_full_name_from_aumid(app_id)?;
-    let install_root = install_path_from_pfn(&pfn)?;
-    let logo_path = logo_path_from_manifest(&install_root)?;
-    let icon_path = resolve_icon_file(&install_root, &logo_path)?;
+    let aumid_hstring = HSTRING::from(aumid);
+
+    let app_info = AppInfo::GetFromAppUserModelId(&aumid_hstring)?;
+    let display_info = app_info.DisplayInfo()?;
+
+    let logo_stream_reference = display_info
+        .GetLogo(Size { Width: 64.0, Height: 64.0 })?;
+
+    let stream = logo_stream_reference.OpenReadAsync()?.await?;
+    let size = stream.Size()? as u32;
+
+    let buffer = Buffer::Create(size)?;
+
+    stream
+        .ReadAsync(&buffer, size, InputStreamOptions::None)?
+        .await?;
+
+    let reader = DataReader::FromBuffer(&buffer)?;
+
+    let mut bytes = vec![0u8; size as usize];
+    reader.ReadBytes(&mut bytes)?;
+
+    let img = image::load_from_memory(&bytes)?;
+    let img = process_logo(img);
 
     fs::create_dir_all(cache_path.parent().unwrap())?;
 
-    fs::copy(&icon_path, &cache_path)?;
+    if !cache_path.exists() {
+        img.save(&cache_path)?;
+    }
 
     Ok(Some(cache_path.to_string_lossy().to_string()))
 }
 
-fn package_full_name_from_aumid(app_id: &str) -> Result<String> {
-    let subkey = format!(r"Software\Classes\AppUserModelId\{app_id}");
-
-    for hive in [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE] {
-        let root = RegKey::predef(hive);
-
-        if let Ok(key) = root.open_subkey(&subkey) {
-            if let Ok(pfn) = key.get_value::<String, _>("PackageFullName") {
-                return Ok(pfn);
-            }
-        }
+async fn get_win32_icon(aumid: &str, cache_path: &Path) -> Result<Option<String>> {
+    if cache_path.exists() {
+        return Ok(Some(cache_path.to_string_lossy().to_string()));
     }
 
-    Err(anyhow!("PackageFullName not found"))
-}
+    let path = format!("shell:AppsFolder\\{aumid}");
+    let path_hstring = HSTRING::from(&path);
 
-fn install_path_from_pfn(pfn: &str) -> Result<PathBuf> {
-    let path = format!(r"Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages\{pfn}");
+    unsafe {
+        let shell_item: IShellItem2 = SHCreateItemFromParsingName(
+            PCWSTR(path_hstring.as_ptr()), 
+            None
+        )?;
 
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let key = hkcu.open_subkey(path)?;
-    let root: String = key.get_value("PackageRootFolder")?;
+        let image_factory: IShellItemImageFactory = shell_item.cast()?;
 
-    Ok(PathBuf::from(root))
-}
+        let size = SIZE { cx: 64, cy: 64 };
+        let hbitmap: HBITMAP = image_factory.GetImage(size, SIIGBF_RESIZETOFIT)?;
 
-fn logo_path_from_manifest(install_root: &Path) -> Result<String> {
-    let manifest = install_root.join("AppxManifest.xml");
+        std::fs::create_dir_all(cache_path.parent().unwrap())?;
 
-    let xml = fs::read_to_string(manifest)?;
+        let save_res = save_hbitmap_to_png(hbitmap, cache_path);
 
-    let mut reader = Reader::from_str(&xml);
-    reader.config_mut().trim_text(true);
+        let _ = DeleteObject(hbitmap.into());
 
-    loop {
-        match reader.read_event() {
-            Ok(quick_xml::events::Event::Start(e)) | Ok(quick_xml::events::Event::Empty(e)) => {
-                let local = e.local_name();
-                let name = std::str::from_utf8(local.as_ref())
-                    .unwrap_or("");
-
-                if name == "VisualElements" {
-                    for attr in e.attributes().flatten() {
-                        let local_name = attr.key.local_name();
-                        let key = std::str::from_utf8(local_name.as_ref())
-                            .unwrap_or("");
-
-                        if key == "Square44x44Logo" {
-                            return Ok(String::from_utf8_lossy(&attr.value).to_string())
-                        }
-                    }
-                }
-            }
-            Ok(quick_xml::events::Event::Eof) => break,
-            Err(e) => return Err(e.into()),
-
-            _ => {}
-        }
+        save_res?;
     }
-
-    Err(anyhow!("Square44x44Logo not found"))
-}
-
-fn resolve_icon_file(install_root: &Path, logo_path: &str) -> Result<PathBuf> {
-    let normalized = logo_path.replace("\\", &String::from(std::path::MAIN_SEPARATOR));
-
-    let exact = install_root.join(&normalized);
-
-    if exact.exists() {
-        return Ok(exact);
-    }
-
-    let base = install_root.join(&normalized);
-
-    let stem = base.file_stem().unwrap().to_string_lossy();
-
-    let dir = base.parent().unwrap();
-
-    let pattern = format!("{}/{}", dir.display(), stem);
-
-    let mut candidates = Vec::new();
-
-    for path in glob::glob(&pattern)?.flatten() {
-        candidates.push(path);
-    }
-
-    let preference = [
-        "scale-200",
-        "scale-150",
-        "scale-100",
-        "targetsize-32",
-        "targetsize-24",
-    ];
-
-    for tag in preference {
-        if let Some(path) = candidates.iter().find(|p| {
-            p.file_name().and_then(|n| n.to_str()).map(|n| n.contains(tag)).unwrap_or(false)
-        }) {
-            return Ok(path.clone());
-        }
-    }
-
-    candidates
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow!("No icon candidate found"))
-}
-
-fn resolve_win32_icon(app_id: &str, cache_path: &Path) -> Result<Option<String>> {
-    let exe_path = find_process_exe(app_id)?;
-    extract_icon_to_png(&exe_path, cache_path)?;
 
     Ok(Some(cache_path.to_string_lossy().to_string()))
 }
 
-fn cache_path(app_id: &str) -> PathBuf {
-    let safe = app_id
-        .replace("\\", "_")
-        .replace("/", "_")
-        .replace(":", "_")
-        .replace("!", "_");
-
-    cache_dir().join("icons").join(format!("{safe}.png"))
-}
-
-fn find_process_exe(app_id: &str) -> Result<PathBuf> {
-    let mut sys = System::new_all();
-
-    sys.refresh_all();
-
-    for process in sys.processes().values() {
-        let name = process.name().to_string_lossy().to_string();
-
-        if name == app_id.to_ascii_lowercase() {
-            if let Some(path) = process.exe() {
-                return Ok(path.to_path_buf());
-            }
-        }
-    }
-
-    Err(anyhow!("Process not found: {app_id}"))
-}
-
-fn extract_icon_to_png(exe: &Path, output: &Path) -> Result<()> {
-    fs::create_dir_all(output.parent().unwrap())?;
-
-    let wide: Vec<u16> = OsStr::new(exe)
-        .encode_wide()
-        .chain(Some(0))
-        .collect();
-
+unsafe fn save_hbitmap_to_png(hbitmap: HBITMAP, cache_path: &Path) -> Result<()> {
     unsafe {
-        let mut info = SHFILEINFOW::default();
-
-        SHGetFileInfoW(
-            PCWSTR(wide.as_ptr()), 
-            windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES(0), 
-            Some(&mut info), 
-            std::mem::size_of::<SHFILEINFOW>() as u32, 
-            SHGFI_ICON | SHGFI_LARGEICON
-        );
-
-        if info.hIcon.is_invalid() {
-            return Err(anyhow!("No icon"));
-        }
-
-        save_hicon_png(info.hIcon, output)?;
-
-        DestroyIcon(info.hIcon)?;
-    }
-
-    Ok(())
-}
-
-fn save_hicon_png(icon: HICON, output: &Path) -> Result<()> {
-    unsafe {
-        let mut icon_info = ICONINFO::default();
-
-        GetIconInfo(icon, &mut icon_info)?;
-
-        let mut bitmap = BITMAP::default();
-
-        GetObjectW(
-            icon_info.hbmColor.into(), 
-            std::mem::size_of::<BITMAP>() as i32, 
-            Some(&mut bitmap as *mut _ as *mut _)
-        );
-
-        let width = bitmap.bmWidth as u32;
-        let height = bitmap.bmHeight as u32;
-
-        let mut pixels = vec![0u8; (width * height * 4) as usize];
+        let hdc = GetDC(None);
 
         let mut bmi = BITMAPINFO {
             bmiHeader: BITMAPINFOHEADER {
                 biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biWidth: width as i32,
-                biHeight: -(height as i32),
+                biWidth: 64,
+                biHeight: -64,
                 biPlanes: 1,
                 biBitCount: 32,
-                biCompression: 0,
+                biCompression: BI_RGB.0 as u32,
                 ..Default::default()
             },
             ..Default::default()
         };
 
-        let hdc = HDC::default();
-        
+        let mut buf = vec![0u8; 64 * 64 * 4];
+
         GetDIBits(
             hdc, 
-            HBITMAP(icon_info.hbmColor.0), 
+            hbitmap, 
             0, 
-            height, 
-            Some(pixels.as_mut_ptr() as *mut _), 
+            64, 
+            Some(buf.as_mut_ptr() as *mut _), 
             &mut bmi, 
             DIB_RGB_COLORS
         );
+        ReleaseDC(None, hdc);
 
-        let image = ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, pixels)
-            .ok_or_else(|| anyhow!("Invalid image"))?;
+        let mut has_alpha = false;
 
-        image.save(output)?;
+        for chunk in buf.chunks_exact_mut(4) {
+            chunk.swap(0, 2);
 
-        let _ = DeleteObject(icon_info.hbmColor.into());
-        let _ = DeleteObject(icon_info.hbmMask.into());
+            if chunk[3] != 0 {
+                has_alpha = true;
+            }
+        }
+
+        if !has_alpha {
+            for chunk in buf.chunks_exact_mut(4) {
+                chunk[3] = 255;
+            }
+        }
+
+        image::save_buffer(
+            cache_path, 
+            &buf, 
+            64, 
+            64, 
+            image::ColorType::Rgba8
+        )?;
+
+        Ok(())
+    }
+}
+
+fn process_logo(img: DynamicImage) -> DynamicImage {
+    let (width, height) = img.dimensions();
+    let mut min_x = width;
+    let mut max_x = 0;
+    let mut min_y = height;
+    let mut max_y = 0;
+    let mut has_pixels = false;
+
+    for x in 0..width {
+        for y in 0..height {
+            let pixel = img.get_pixel(x, y);
+            if pixel[3] > 0 {
+                if x < min_x { min_x = x; }
+                if x > max_x { max_x = x; }
+                if y < min_y { min_y = y; }
+                if y > max_y { max_y = y; }
+                has_pixels = true;
+            }
+        }
     }
 
-    Ok(())
+    if has_pixels {
+        let crop_w = max_x - min_x + 1;
+        let crop_h = max_y - min_y + 1;
+
+        let cropped = img.crop_imm(min_x, min_y, crop_w, crop_h);
+        cropped.resize(64, 64, image::imageops::FilterType::Lanczos3)
+    } else {
+        img.resize_exact(64, 64, image::imageops::FilterType::Lanczos3)
+    }
+}
+
+fn cache_path(aumid: &str) -> PathBuf {
+    let name = resolve_name_from_aumid(aumid);
+
+    cache_dir().join("icons").join(format!("{name}.png"))
 }

@@ -17,7 +17,7 @@ component CollapsedNotification inherits HorizontalLayout {
         Image {
             width: parent.width;
             height: parent.height;
-            source: IslandData.notification.image;
+            source: IslandData.notification.app-icon;
         }
     }
 
@@ -34,6 +34,7 @@ component CollapsedNotification inherits HorizontalLayout {
             horizontal-alignment: left;
             letter-spacing: -0.2px;
         }
+
         Text {
             text: IslandData.notification.body;
             overflow: elide;
@@ -54,10 +55,10 @@ component ExpandedNotification inherits VerticalLayout {
         alignment: start;
         spacing: 8px;
         vertical-stretch: 0;
-        
+
         Rectangle {
             y: (parent.height - self.height) / 2;
-            
+
             height: 18px;
             width: 18px;
             border-radius: 2px;
@@ -66,7 +67,7 @@ component ExpandedNotification inherits VerticalLayout {
             Image {
                 width: parent.width;
                 height: parent.height;
-                source: IslandData.notification.image;
+                source: IslandData.notification.app-icon;
             }
         }
 
@@ -82,28 +83,13 @@ component ExpandedNotification inherits VerticalLayout {
         }
     }
 
-    HorizontalLayout {
-        vertical-stretch: 1;
-        spacing: 1.5rem;
+    Rectangle {
+        clip: true;
 
-        Rectangle {
-            horizontal-stretch: 0;
-            height: 80px;
-            width: 80px;
-            border-radius: 2px;
-            clip: true;
-    
-            Image {
-                width: parent.width;
-                height: parent.height;
-                source: IslandData.notification.image;
-            }
-        }
-    
         VerticalLayout {
             alignment: start;
             spacing: 4px;
-            
+    
             Text {
                 vertical-stretch: 0;
                 text: IslandData.notification.title;
@@ -114,7 +100,7 @@ component ExpandedNotification inherits VerticalLayout {
                 horizontal-alignment: left;
                 letter-spacing: -0.2px;
             }
-
+    
             Text {
                 vertical-stretch: 1;
                 text: IslandData.notification.body;

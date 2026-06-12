@@ -33,7 +33,18 @@ fn main() -> Result<()> {
 
     let shell = Shell::new().unwrap();
 
-    initialize_window(&shell, SHELL_WIDTH, SHELL_HEIGHT, state.clone());
+    let weak = shell.as_weak();
+
+    initialize_window(
+        &shell, 
+        SHELL_WIDTH, 
+        SHELL_HEIGHT, 
+        state.clone(),
+        move || weak
+            .upgrade()
+            .map(|s| s.global::<IslandData>().get_collapsed())
+            .unwrap_or(false)
+    );
 
     app.start(&shell)?;
 

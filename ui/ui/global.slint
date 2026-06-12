@@ -13,19 +13,21 @@ export struct MediaState {
     playing: bool,
 
     duration-ms: int,
-    position-ms: int,
 }
 
 export struct NotificationState {
-    app-name: string,
-    image: image,
+    id: string,
 
+    app-name: string,
+    app-icon: image,
+    
     title: string,
-    body: string
+    body: string,
 }
 
 export global IslandData {
     in-out property <bool> expanded;
+    in-out property <bool> collapsed;
 
     in property <bool> mic;
     in property <bool> camera;
@@ -33,14 +35,10 @@ export global IslandData {
     in property <IslandContent> content;
 
     in property <MediaState> media;
-    in property <NotificationState> notification: {
-        app-name: "(unnamed app)",
-        image: Assets.fallback-app,
-        title: "(unnamed title)",
-        body: "(unnamed body)"
-    };
+    in property <NotificationState> notification;
 
     in property <[float]> spectrum;
+    in property <int> media-position;
 
     callback action(name: string, payload: string);
 }

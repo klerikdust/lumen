@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+use anyhow::Result;
+use windows::Media::Control::{GlobalSystemMediaTransportControlsSession, GlobalSystemMediaTransportControlsSessionManager};
+
 use crate::{bus::{EventReceiver, EventSender, create_bus}, runtime::RuntimeState, services::{Service, audio::AudioSpectrumService, camera::CameraService, media::MediaService, microphone::MicrophoneService, notifications::NotificationService}, utils::cache_dir};
 
 pub struct IslandCore {
@@ -46,6 +49,47 @@ impl IslandCore {
         run_service::<CameraService>(handle, tx.clone(), runtime.clone());
         run_service::<MicrophoneService>(handle, tx.clone(), runtime.clone());
         run_service::<AudioSpectrumService>(handle, tx.clone(), runtime.clone());
+    }
+
+    pub fn dismiss_notification(&self, id: u64) {
+        self.runtime.notifications.lock().unwrap().retain(|n| n.id != id);
+
+        let _ = self.tx.send(crate::CoreEvent::Arbitrary);
+    }
+
+    async fn current_session(&self) -> Result<GlobalSystemMediaTransportControlsSession> {
+        let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?
+            .await?;
+
+        Ok(manager.GetCurrentSession()?)
+    }
+
+    pub async fn toggle_playback(&self) -> Result<()> {
+        let session = self.current_session().await?;
+        session.TryTogglePlayPauseAsync()?.await?;
+
+        Ok(())
+    }
+
+    pub async fn next(&self) -> Result<()> {
+        let session = self.current_session().await?;
+        session.TrySkipNextAsync()?.await?;
+
+        Ok(())
+    }
+
+    pub async fn previous(&self) -> Result<()> {
+        let session = self.current_session().await?;
+        session.TrySkipPreviousAsync()?.await?;
+
+        Ok(())
+    }
+
+    pub async fn seek(&self, position_ms: u64) -> Result<()> {
+        let session = self.current_session().await?;
+        session.TryChangePlaybackPositionAsync((position_ms * 10_000) as i64)?.await?;
+
+        Ok(())
     }
 }
 

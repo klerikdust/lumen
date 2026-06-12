@@ -17,7 +17,7 @@ export component Shell inherits Window {
 
     in property <length> island-y;
 
-    callback spectrum-tick();
+    callback tick();
 
     background: transparent;
 
@@ -26,7 +26,7 @@ export component Shell inherits Window {
 
     Island {
         width: island-width;
-        height: island-height;
+        height: island-height + 8px;
 
         radius: island-radius;
 
@@ -40,7 +40,7 @@ export component Shell inherits Window {
         running: true;
 
         triggered => {
-            root.spectrum-tick()
+            root.tick()
         }
     }
 }

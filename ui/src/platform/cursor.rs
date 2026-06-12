@@ -27,24 +27,27 @@ pub fn point_inside_pill(
     if px >= radius && px < width - radius {
         return true;
     }
-    if py >= radius && py < height - radius {
+    if py < height - radius {
         return true;
     }
 
-    let dx = px - radius;
-    let dy = py - radius;
+    // // top left
+    // let dx = px - radius;
+    // let dy = py - radius;
 
-    if dx * dx + dy * dy <= radius * radius {
-        return true;
-    }
+    // if dx * dx + dy * dy <= radius * radius {
+    //     return true;
+    // }
 
-    let dx = px - (width - radius - 1);
-    let dy = py - radius;
+    // // top right
+    // let dx = px - (width - radius - 1);
+    // let dy = py - radius;
 
-    if dx * dx + dy * dy <= radius * radius {
-        return true;
-    }
+    // if dx * dx + dy * dy <= radius * radius {
+    //     return true;
+    // }
 
+    // bottom left
     let dx = px - radius;
     let dy = py - (height - radius - 1);
 
@@ -52,6 +55,7 @@ pub fn point_inside_pill(
         return true;
     }
 
+    // bottom right
     let dx = px - (width - radius - 1);
     let dy = py - (height - radius - 1);
 

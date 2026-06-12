@@ -1,0 +1,69 @@
+import { IslandData, Assets } from "../global.slint";
+
+export component MediaControls inherits HorizontalLayout {
+    spacing: 1rem;
+
+    property <length> size: 60px;
+    
+    prev := Rectangle {
+        width: 32px; 
+        height: 32px; 
+
+        Image {
+            width: parent.width;
+            height: parent.height;
+            source: Assets.prev-img;
+        }
+
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: pointer;
+
+            clicked => {
+                IslandData.action("previous", "");
+            }
+        }
+    }
+    play-pause := Rectangle {
+        width: 32px; 
+        height: 32px; 
+
+        Image {
+            width: parent.width;
+            height: parent.height;
+            source: IslandData.media.playing ? Assets.pause-img : Assets.play-img;
+        }
+
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: pointer;
+            
+            clicked => {
+                IslandData.action("toggle-playback", "");
+            }
+        }
+    }
+
+    next := Rectangle {
+        width: 32px; 
+        height: 32px; 
+
+        Image {
+            width: parent.width;
+            height: parent.height;
+            source: Assets.next-img;
+        }
+        
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: pointer;
+            
+            clicked => {
+                IslandData.action("next", "");
+            }
+        }
+    }
+}
