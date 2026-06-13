@@ -6,7 +6,7 @@ use windows::{ApplicationModel::AppInfo, Foundation::Size, Storage::Streams::{Bu
 use windows_core::{HSTRING, Interface, PCWSTR};
 use winreg::HKLM;
 
-use crate::utils::cache_dir;
+use crate::utils::icons_dir;
 
 struct OwnedDC(windows::Win32::Graphics::Gdi::HDC);
 
@@ -61,7 +61,7 @@ async fn get_logo(aumid: &str, cache_path: &Path) -> Result<Option<String>> {
     let img = image::load_from_memory(&bytes)?;
     let img = process_logo(img);
 
-    fs::create_dir_all(cache_path.parent().unwrap())?;
+    fs::create_dir_all(icons_dir())?;
 
     if !cache_path.exists() {
         img.save(&cache_path)?;
@@ -89,7 +89,7 @@ fn get_win32_icon(aumid: &str, cache_path: &Path) -> Result<Option<String>> {
         let size = SIZE { cx: 64, cy: 64 };
         let hbitmap: HBITMAP = image_factory.GetImage(size, SIIGBF_RESIZETOFIT)?;
 
-        std::fs::create_dir_all(cache_path.parent().unwrap())?;
+        std::fs::create_dir_all(icons_dir())?;
 
         let save_res = save_hbitmap_to_png(hbitmap, cache_path);
 
@@ -114,7 +114,7 @@ fn get_icon_from_registry(aumid: &str, cache_path: &Path) -> Result<Option<Strin
     let img = image::open(path)?;
     let img = process_logo(img);
 
-    std::fs::create_dir_all(cache_path.parent().unwrap())?;
+    std::fs::create_dir_all(icons_dir())?;
     
     img.save_with_format(cache_path, image::ImageFormat::Png)?;
 
@@ -216,5 +216,5 @@ fn cache_path(aumid: &str) -> PathBuf {
         "_"
     );
 
-    cache_dir().join("icons").join(format!("{safe}.png"))
+    icons_dir().join(format!("{safe}.png"))
 }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use windows::Media::Control::{GlobalSystemMediaTransportControlsSession, GlobalSystemMediaTransportControlsSessionManager};
 
-use crate::{bus::{EventReceiver, EventSender, create_bus}, runtime::RuntimeState, services::{Service, audio::AudioSpectrumService, camera::CameraService, media::MediaService, microphone::MicrophoneService, notifications::NotificationService}, utils::cache_dir};
+use crate::{bus::{EventReceiver, EventSender, create_bus}, runtime::RuntimeState, services::{Service, audio::AudioSpectrumService, camera::CameraService, media::MediaService, microphone::MicrophoneService, notifications::NotificationService}, utils::{artwork_dir, cache_dir, icons_dir}};
 
 pub struct IslandCore {
     tx: EventSender,
@@ -17,6 +17,8 @@ impl IslandCore {
         let (tx, rx) = create_bus();
 
         let _ = std::fs::create_dir_all(cache_dir());
+        let _ = std::fs::create_dir_all(artwork_dir());
+        let _ = std::fs::create_dir_all(icons_dir());
 
         Self {
             tx,

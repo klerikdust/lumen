@@ -2,7 +2,7 @@ use anyhow::Result;
 use windows::{Media::Control::GlobalSystemMediaTransportControlsSessionMediaProperties, Storage::Streams::{Buffer, DataReader, InputStreamOptions}};
 use xxhash_rust::xxh3::xxh3_64;
 
-use crate::utils::cache_dir;
+use crate::utils::artwork_dir;
 
 pub async fn extract_album_art(
     props: &GlobalSystemMediaTransportControlsSessionMediaProperties
@@ -31,7 +31,7 @@ pub async fn extract_album_art(
 
     let img = image::load_from_memory(&bytes)?;
 
-    let dir = cache_dir().join("artwork");
+    let dir = artwork_dir();
 
     std::fs::create_dir_all(&dir)?;
 
