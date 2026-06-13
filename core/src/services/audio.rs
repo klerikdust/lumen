@@ -124,7 +124,7 @@ unsafe fn run_loopback(runtime: Arc<RuntimeState>) -> Result<()> {
     
             while ring.len() >= FFT_SIZE {
                 for i in 0..FFT_SIZE {
-                    let sample = ring.pop_front().unwrap();
+                    let sample = ring.pop_front().unwrap_or(0.0);
                     buffer[i] = Complex { re: sample * window[i], im: 0.0 };
                 }
 

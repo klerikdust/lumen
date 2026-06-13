@@ -66,10 +66,8 @@ impl Service for MediaService {
 }
 
 async fn current_media() -> Result<Option<MediaState>> {
-    let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
-        .unwrap()
-        .await
-        .unwrap();
+    let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?
+        .await?;
 
     let Ok(session) = manager.GetCurrentSession() else {
         return Ok(None);

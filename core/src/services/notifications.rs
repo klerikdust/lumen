@@ -1,5 +1,6 @@
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
+use anyhow::{Result, bail};
 use async_trait::async_trait;
 use windows::{
     UI::Notifications::{
@@ -35,24 +36,20 @@ impl Service for NotificationService {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
 
-        let listener = UserNotificationListener::Current().unwrap();
-
-        let access = listener.RequestAccessAsync().unwrap().await.unwrap();
-
-        if access != UserNotificationListenerAccessStatus::Allowed {
-            eprintln!("Notification access denied");
+        let Ok(listener) = create_listener().await else {
             return;
-        }
+        };
 
         loop {
             let mut notifications_to_process = Vec::new();
 
             {
-                let notifications = listener
-                    .GetNotificationsAsync(NotificationKinds::Toast)
-                    .unwrap()
-                    .await
-                    .unwrap();
+                let Ok(op) = listener.GetNotificationsAsync(NotificationKinds::Toast) else {
+                    return;
+                };
+                let Ok(notifications) = op.await else {
+                    return;
+                };
 
                 let mut live_ids: HashSet<u32> = HashSet::new();
                 let count = notifications.Size().unwrap_or(0);
@@ -67,7 +64,7 @@ impl Service for NotificationService {
                 self.seen.retain(|id| live_ids.contains(id));
 
                 for notification in notifications {
-                    let id = notification.Id().unwrap();
+                    let Ok(id) = notification.Id() else { continue; };
 
                     if self.seen.contains(&id) {
                         continue;
@@ -126,6 +123,18 @@ impl Service for NotificationService {
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
     }
+}
+
+async fn create_listener() -> Result<UserNotificationListener> {
+    let listener = UserNotificationListener::Current()?;
+    let access = listener.RequestAccessAsync()?.await?;
+
+    if access != UserNotificationListenerAccessStatus::Allowed {
+        eprintln!("Notification access denied");
+        bail!("Notification access denied");
+    }
+
+    Ok(listener)
 }
 
 fn parse_notification(notification: UserNotification) -> (String, String) {
