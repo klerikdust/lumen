@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Get version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Verify version matches Cargo.toml
+        shell: bash
+        run: |
+          CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | python -c "import sys,json; print(json.load(sys.stdin)['packages'][0]['version'])")
+          TAG_VERSION=${{ steps.version.outputs.VERSION }}
+          if [ "$CARGO_VERSION" != "$TAG_VERSION" ]; then
+            echo "Version mismatch: Cargo.toml is v$CARGO_VERSION but tag is v$TAG_VERSION"
+            exit 1
+          fi
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        run: iscc /DAppVersion=${{ steps.version.outputs.VERSION }} setup.iss
+
+      - name: Verify installer exists
+        shell: bash
+        run: |
+          if [ ! -f "dist/Lumen-${{ steps.version.outputs.VERSION }}-setup.exe" ]; then
+            echo "Installer not found"
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Lumen v${{ steps.version.outputs.VERSION }}
+          files: dist/Lumen-${{ steps.version.outputs.VERSION }}-setup.exe
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

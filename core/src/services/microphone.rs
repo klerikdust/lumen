@@ -1,14 +1,23 @@
-use std::{sync::{Arc, atomic::Ordering}, time::Duration};
+use std::{
+    sync::{Arc, atomic::Ordering},
+    time::Duration,
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use windows::Win32::{Media::Audio::{AudioSessionStateActive, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator, MMDeviceEnumerator, eCapture, eCommunications}, System::Com::{CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx}};
+use windows::Win32::{
+    Media::Audio::{
+        AudioSessionStateActive, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator,
+        MMDeviceEnumerator, eCapture, eCommunications,
+    },
+    System::Com::{CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx},
+};
 use windows_core::Interface;
 
 use crate::{CoreEvent, bus::EventSender, runtime::RuntimeState, services::Service};
 
 pub struct MicrophoneService {
-    active: bool
+    active: bool,
 }
 
 #[async_trait]
@@ -17,15 +26,11 @@ impl Service for MicrophoneService {
         Self { active: false }
     }
 
-    async fn run(
-        mut self,
-        tx: EventSender,
-        runtime: Arc<RuntimeState>
-    ) {
+    async fn run(mut self, tx: EventSender, runtime: Arc<RuntimeState>) {
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
-        
+
         loop {
             let current = microphone_active();
 
@@ -34,13 +39,11 @@ impl Service for MicrophoneService {
 
                 runtime.mic.store(current, Ordering::Relaxed);
 
-                let _ = tx.send(
-                    if current {
-                        CoreEvent::MicrophoneActive
-                    } else {
-                        CoreEvent::MicrophoneInactive
-                    }
-                );
+                let _ = tx.send(if current {
+                    CoreEvent::MicrophoneActive
+                } else {
+                    CoreEvent::MicrophoneInactive
+                });
             }
 
             tokio::time::sleep(Duration::from_millis(500)).await;
@@ -61,7 +64,7 @@ fn microphone_active() -> bool {
 }
 
 pub struct MicrophoneDetector {
-    enumerator: IMMDeviceEnumerator
+    enumerator: IMMDeviceEnumerator,
 }
 
 impl MicrophoneDetector {
@@ -70,23 +73,15 @@ impl MicrophoneDetector {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
 
-        let enumerator: IMMDeviceEnumerator = unsafe {
-            CoCreateInstance(
-                &MMDeviceEnumerator, 
-                None, 
-                CLSCTX_ALL
-            )?
-        };
+        let enumerator: IMMDeviceEnumerator =
+            unsafe { CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)? };
 
         Ok(Self { enumerator })
     }
 
     pub fn active(&self) -> Result<bool> {
         unsafe {
-            let device = self.enumerator.GetDefaultAudioEndpoint(
-                eCapture, 
-                eCommunications
-            )?;
+            let device = self.enumerator.GetDefaultAudioEndpoint(eCapture, eCommunications)?;
 
             let manager: IAudioSessionManager2 = device.Activate(CLSCTX_ALL, None)?;
 

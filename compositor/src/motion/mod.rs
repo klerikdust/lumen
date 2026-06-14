@@ -1,6 +1,6 @@
 mod driver;
+mod island;
 mod spring;
 mod value;
-mod island;
 
 pub use driver::MotionDriver;

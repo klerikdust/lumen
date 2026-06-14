@@ -12,7 +12,9 @@ use windows::{
         Graphics::{
             Direct3D::D3D_DRIVER_TYPE_HARDWARE,
             Direct3D11::{
-                D3D11_BIND_RENDER_TARGET, D3D11_BIND_SHADER_RESOURCE, D3D11_BOX, D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11_TEXTURE2D_DESC, D3D11CreateDevice, ID3D11Device, ID3D11DeviceContext, ID3D11Texture2D
+                D3D11_BIND_RENDER_TARGET, D3D11_BIND_SHADER_RESOURCE, D3D11_BOX,
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11_TEXTURE2D_DESC,
+                D3D11CreateDevice, ID3D11Device, ID3D11DeviceContext, ID3D11Texture2D,
             },
             Dxgi::IDXGIDevice,
             Gdi::{MONITOR_DEFAULTTOPRIMARY, MonitorFromPoint},
@@ -23,7 +25,8 @@ use windows::{
                 Direct3D11::{CreateDirect3D11DeviceFromDXGIDevice, IDirect3DDxgiInterfaceAccess},
                 Graphics::Capture::IGraphicsCaptureItemInterop,
             },
-        }, UI::WindowsAndMessaging::GetWindowRect,
+        },
+        UI::WindowsAndMessaging::GetWindowRect,
     },
 };
 use windows_core::{IInspectable, Interface};
@@ -108,14 +111,7 @@ impl CaptureState {
 
         session.StartCapture()?;
 
-        Ok(Self {
-            d3d_device,
-            winrt_device,
-            item,
-            frame_pool,
-            session,
-            latest_frame,
-        })
+        Ok(Self { d3d_device, winrt_device, item, frame_pool, session, latest_frame })
     }
 
     pub fn to_wgpu_view(&self, device: &wgpu::Device, tex: &ID3D11Texture2D) -> TextureView {
@@ -156,7 +152,8 @@ impl CaptureState {
             src_tex.GetDesc(&mut desc);
             desc.Width = width;
             desc.Height = height;
-            desc.BindFlags = D3D11_BIND_SHADER_RESOURCE.0 as u32 | D3D11_BIND_RENDER_TARGET.0 as u32;
+            desc.BindFlags =
+                D3D11_BIND_SHADER_RESOURCE.0 as u32 | D3D11_BIND_RENDER_TARGET.0 as u32;
 
             let mut dst_tex = None;
             d3d_device.CreateTexture2D(&desc, None, Some(&mut dst_tex))?;

@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, sync::{Arc, Mutex, RwLock, atomic::AtomicBool}};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex, RwLock, atomic::AtomicBool},
+};
 
 use crate::{MediaState, NotificationState};
 
@@ -9,7 +12,7 @@ pub struct RuntimeState {
     pub mic: AtomicBool,
     pub camera: AtomicBool,
 
-    pub spectrum: Arc<RwLock<[f32; 24]>>
+    pub spectrum: Arc<RwLock<[f32; 24]>>,
 }
 
 impl RuntimeState {
@@ -19,7 +22,7 @@ impl RuntimeState {
             notifications: Arc::new(Mutex::new(VecDeque::new())),
             mic: AtomicBool::new(false),
             camera: AtomicBool::new(false),
-            spectrum: Arc::new(RwLock::new([0.0; 24]))
+            spectrum: Arc::new(RwLock::new([0.0; 24])),
         }
     }
 }

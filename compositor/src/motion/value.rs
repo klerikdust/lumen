@@ -4,17 +4,12 @@ pub struct SpringValue {
     pub value: f32,
     pub target: f32,
     pub velocity: f32,
-    pub spring: Spring
+    pub spring: Spring,
 }
 
 impl SpringValue {
     pub fn new(v: f32) -> Self {
-        Self {
-            value: v,
-            target: v,
-            velocity: 0.0,
-            spring: Spring::default()
-        }
+        Self { value: v, target: v, velocity: 0.0, spring: Spring::default() }
     }
 
     pub fn set(&mut self, t: f32) {

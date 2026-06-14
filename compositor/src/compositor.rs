@@ -81,9 +81,8 @@ impl<'w> Compositor<'w> {
             ..Default::default()
         });
 
-        let vertices: [f32; 16] = [
-            -1.0, -1.0, 0.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0,
-        ];
+        let vertices: [f32; 16] =
+            [-1.0, -1.0, 0.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0];
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Quad V8"),
@@ -208,8 +207,7 @@ impl<'w> Compositor<'w> {
     }
 
     pub fn set_region(&self, params: RegionParams) {
-        self.queue
-            .write_buffer(&self.region_buffer, 0, bytemuck::bytes_of(&params));
+        self.queue.write_buffer(&self.region_buffer, 0, bytemuck::bytes_of(&params));
     }
 
     pub fn draw(
@@ -219,18 +217,11 @@ impl<'w> Compositor<'w> {
         glow_power: f32,
         blur_strength: f32,
         shadow_power: f32,
-        radius: f32
+        radius: f32,
     ) -> Result<()> {
-        let params = IslandParams {
-            refraction,
-            glow_power,
-            shadow_power,
-            blur_strength,
-            radius
-        };
+        let params = IslandParams { refraction, glow_power, shadow_power, blur_strength, radius };
 
-        self.queue
-            .write_buffer(&self.param_buffer, 0, bytemuck::bytes_of(&params));
+        self.queue.write_buffer(&self.param_buffer, 0, bytemuck::bytes_of(&params));
 
         let frame = self.surface.get_current_texture()?;
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
@@ -238,31 +229,17 @@ impl<'w> Compositor<'w> {
         let bind = self.device.create_bind_group(&BindGroupDescriptor {
             layout: &self.bind_layout,
             entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(texture),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&self.sampler),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: self.param_buffer.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: self.region_buffer.as_entire_binding(),
-                },
+                BindGroupEntry { binding: 0, resource: BindingResource::TextureView(texture) },
+                BindGroupEntry { binding: 1, resource: BindingResource::Sampler(&self.sampler) },
+                BindGroupEntry { binding: 2, resource: self.param_buffer.as_entire_binding() },
+                BindGroupEntry { binding: 3, resource: self.region_buffer.as_entire_binding() },
             ],
             label: None,
         });
 
-        let mut encoder = self
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("compositor_encoder"),
-            });
+        let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("compositor_encoder"),
+        });
 
         {
             let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {

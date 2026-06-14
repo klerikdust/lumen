@@ -17,8 +17,10 @@ mod sync;
 
 slint::include_modules!();
 
+pub const AUMID: &str = "io.risuleia.lumen";
+
 fn main() -> Result<()> {
-    let instance = SingleInstance::new("io.risuleia.lumen").unwrap();
+    let instance = SingleInstance::new(AUMID).unwrap();
     if !instance.is_single() {
         return Err(anyhow!("One instance of Lumen is already running."));
     }
@@ -33,18 +35,10 @@ fn main() -> Result<()> {
     let weak = shell.as_weak();
 
     let (_tray, _tray_timer) = initialize_tray();
-    
-    initialize_window(
-        &shell, 
-        SHELL_WIDTH, 
-        SHELL_HEIGHT, 
-        state.clone(),
-        move || weak
-            .upgrade()
-            .map(|s| s.global::<IslandData>().get_collapsed())
-            .unwrap_or(false)
-    );
 
+    initialize_window(&shell, SHELL_WIDTH, SHELL_HEIGHT, state.clone(), move || {
+        weak.upgrade().map(|s| s.global::<IslandData>().get_collapsed()).unwrap_or(false)
+    });
 
     app.start(&shell)?;
 

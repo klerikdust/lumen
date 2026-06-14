@@ -1,10 +1,26 @@
-use std::{sync::Arc, time::{Duration, SystemTime}};
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use windows::{Media::Control::{GlobalSystemMediaTransportControlsSession, GlobalSystemMediaTransportControlsSessionManager, GlobalSystemMediaTransportControlsSessionPlaybackStatus}, Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx}};
+use windows::{
+    Media::Control::{
+        GlobalSystemMediaTransportControlsSession,
+        GlobalSystemMediaTransportControlsSessionManager,
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus,
+    },
+    Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx},
+};
 
-use crate::{CoreEvent, MediaState, bus::EventSender, runtime::RuntimeState, services::Service, utils::{artwork::extract_album_art, icon::resolve_app_icon, name::resolve_name_from_aumid}};
+use crate::{
+    CoreEvent, MediaState,
+    bus::EventSender,
+    runtime::RuntimeState,
+    services::Service,
+    utils::{artwork::extract_album_art, icon::resolve_app_icon, name::resolve_name_from_aumid},
+};
 
 pub struct MediaService {
     current: Option<MediaState>,
@@ -16,17 +32,13 @@ impl Service for MediaService {
         Self { current: None }
     }
 
-    async fn run(
-        mut self,
-        tx: EventSender,
-        runtime: Arc<RuntimeState>
-    ) {
+    async fn run(mut self, tx: EventSender, runtime: Arc<RuntimeState>) {
         loop {
             let result = tokio::task::spawn_blocking(move || {
                 unsafe {
                     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
                 }
-                
+
                 tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
@@ -51,11 +63,11 @@ impl Service for MediaService {
                         }
                         _ => {}
                     }
-        
+
                     *runtime.media.write().unwrap() = new.clone();
-                    
+
                     self.current = new;
-                },
+                }
                 Ok(Err(e)) => eprintln!("[MediaService] {e}"),
                 Err(e) => eprintln!("[MediaService] blocking task panicked: {e}"),
             }
@@ -66,8 +78,7 @@ impl Service for MediaService {
 }
 
 async fn current_media() -> Result<Option<MediaState>> {
-    let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?
-        .await?;
+    let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?.await?;
 
     let Ok(session) = manager.GetCurrentSession() else {
         return Ok(None);
@@ -77,27 +88,20 @@ async fn current_media() -> Result<Option<MediaState>> {
 }
 
 async fn build_media_state(
-    session: &GlobalSystemMediaTransportControlsSession
+    session: &GlobalSystemMediaTransportControlsSession,
 ) -> Result<MediaState> {
-    let props = session
-        .TryGetMediaPropertiesAsync()?
-        .await?;
+    let props = session.TryGetMediaPropertiesAsync()?.await?;
 
-    let playback = session
-        .GetPlaybackInfo()?
-        .PlaybackStatus()?;
+    let playback = session.GetPlaybackInfo()?.PlaybackStatus()?;
 
     let timeline = session.GetTimelineProperties()?;
 
     let duration_ms = timeline.EndTime()?.Duration as u64 / 10_000;
     let position_ms = timeline.Position()?.Duration as u64 / 10_000;
 
-    let playing = 
-        playback == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;
+    let playing = playback == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;
 
-    let app_id = session
-        .SourceAppUserModelId()?
-        .to_string();
+    let app_id = session.SourceAppUserModelId()?.to_string();
 
     let last_updated_filetime = timeline.LastUpdatedTime()?;
     let win32_ticks = last_updated_filetime.UniversalTime;
@@ -120,6 +124,6 @@ async fn build_media_state(
 
         app_icon: resolve_app_icon(&app_id).await,
 
-        synced_at
+        synced_at,
     })
 }

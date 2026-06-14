@@ -1,9 +1,10 @@
-mod window;
 mod clickthrough;
 mod cursor;
 mod fullscreen;
+mod toast;
 mod tray;
+mod updater;
+mod window;
 
-pub use window::initialize_window;
-pub use clickthrough::set_clickthrough;
 pub use tray::initialize_tray;
+pub use window::initialize_window;

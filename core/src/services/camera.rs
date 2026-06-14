@@ -7,7 +7,7 @@ use winreg::{RegKey, enums::HKEY_CURRENT_USER};
 use crate::{CoreEvent, bus::EventSender, runtime::RuntimeState, services::Service};
 
 pub struct CameraService {
-    active: bool
+    active: bool,
 }
 
 #[async_trait]
@@ -16,15 +16,11 @@ impl Service for CameraService {
         Self { active: false }
     }
 
-    async fn run(
-        mut self,
-        tx: EventSender,
-        runtime: Arc<RuntimeState>
-    ) {
+    async fn run(mut self, tx: EventSender, runtime: Arc<RuntimeState>) {
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
-        
+
         loop {
             let current = camera_active();
 
@@ -33,13 +29,11 @@ impl Service for CameraService {
 
                 runtime.camera.store(current, std::sync::atomic::Ordering::Relaxed);
 
-                let _ = tx.send(
-                    if current {
-                        CoreEvent::CameraActive
-                    } else {
-                        CoreEvent::CameraInactive
-                    }
-                );
+                let _ = tx.send(if current {
+                    CoreEvent::CameraActive
+                } else {
+                    CoreEvent::CameraInactive
+                });
             }
 
             tokio::time::sleep(Duration::from_millis(500)).await;

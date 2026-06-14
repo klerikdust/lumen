@@ -1,15 +1,25 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use windows::Media::Control::{GlobalSystemMediaTransportControlsSession, GlobalSystemMediaTransportControlsSessionManager};
+use windows::Media::Control::{
+    GlobalSystemMediaTransportControlsSession, GlobalSystemMediaTransportControlsSessionManager,
+};
 
-use crate::{bus::{EventReceiver, EventSender, create_bus}, runtime::RuntimeState, services::{Service, audio::AudioSpectrumService, camera::CameraService, media::MediaService, microphone::MicrophoneService, notifications::NotificationService}, utils::{artwork_dir, cache_dir, icons_dir}};
+use crate::{
+    bus::{EventReceiver, EventSender, create_bus},
+    runtime::RuntimeState,
+    services::{
+        Service, audio::AudioSpectrumService, camera::CameraService, media::MediaService,
+        microphone::MicrophoneService, notifications::NotificationService,
+    },
+    utils::{artwork_dir, cache_dir, icons_dir},
+};
 
 pub struct IslandCore {
     tx: EventSender,
     rx: EventReceiver,
     runtime: Arc<RuntimeState>,
-    executor: tokio::runtime::Runtime
+    executor: tokio::runtime::Runtime,
 }
 
 impl IslandCore {
@@ -24,7 +34,7 @@ impl IslandCore {
             tx,
             rx,
             runtime: Arc::new(RuntimeState::new()),
-            executor: tokio::runtime::Runtime::new().unwrap()
+            executor: tokio::runtime::Runtime::new().unwrap(),
         }
     }
 
@@ -60,8 +70,7 @@ impl IslandCore {
     }
 
     async fn current_session(&self) -> Result<GlobalSystemMediaTransportControlsSession> {
-        let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?
-            .await?;
+        let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?.await?;
 
         Ok(manager.GetCurrentSession()?)
     }
@@ -97,8 +106,8 @@ impl IslandCore {
 
 fn run_service<S: Service>(
     handle: &tokio::runtime::Handle,
-    tx: EventSender, 
-    runtime: Arc<RuntimeState>, 
+    tx: EventSender,
+    runtime: Arc<RuntimeState>,
 ) {
     handle.spawn(async move {
         S::new().run(tx, runtime).await;

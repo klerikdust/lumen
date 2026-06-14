@@ -1,5 +1,8 @@
 use anyhow::Result;
-use winit::{dpi::{PhysicalPosition, PhysicalSize}, window::Window};
+use winit::{
+    dpi::{PhysicalPosition, PhysicalSize},
+    window::Window,
+};
 
 use crate::{compositor::RegionParams, motion::MotionDriver};
 
@@ -17,11 +20,7 @@ pub struct LiquidGlassConfig {
 
 impl Default for LiquidGlassConfig {
     fn default() -> Self {
-        Self {
-            blur_strength: 25.0,
-            refraction: 0.12,
-            intensity: 1.0,
-        }
+        Self { blur_strength: 25.0, refraction: 0.12, intensity: 1.0 }
     }
 }
 
@@ -33,7 +32,7 @@ pub struct LiquidGlassEngine<'w> {
 
     pub motion: motion::MotionDriver,
 
-    pub corner_radius: f32
+    pub corner_radius: f32,
 }
 
 impl<'w> LiquidGlassEngine<'w> {
@@ -59,13 +58,7 @@ impl<'w> LiquidGlassEngine<'w> {
 
         let motion = MotionDriver::new();
 
-        Ok(Self {
-            gpu,
-            capture,
-            compositor,
-            motion,
-            corner_radius: 26.0
-        })
+        Ok(Self { gpu, capture, compositor, motion, corner_radius: 26.0 })
     }
 
     pub fn tick(&mut self) {
@@ -85,32 +78,18 @@ impl<'w> LiquidGlassEngine<'w> {
 
             self.compositor.set_region(RegionParams {
                 island_pos: [pos.x as f32, pos.y as f32],
-                island_size: [
-                    inner.width as f32,
-                    inner.height as f32,
-                ],
+                island_size: [inner.width as f32, inner.height as f32],
                 capture_size: [sz.Width as f32, sz.Height as f32],
                 _pad: [0.0, 0.0],
             });
 
             self.compositor
-                .draw(
-                    &view,
-                    m.radius.value,
-                    0.02,
-                    m.glow.value,
-                    m.shadow.value,
-                    self.corner_radius
-                )
+                .draw(&view, m.radius.value, 0.02, m.glow.value, m.shadow.value, self.corner_radius)
                 .unwrap();
         }
     }
 
-    pub fn set_island_visual(
-        &mut self,
-        width: u32,
-        height: u32,
-    ) {
+    pub fn set_island_visual(&mut self, width: u32, height: u32) {
         let window = &self.compositor.window;
         let pos = window.outer_position().unwrap();
 

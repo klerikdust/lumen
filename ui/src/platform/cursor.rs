@@ -10,13 +10,7 @@ pub fn cursor_position() -> (i32, i32) {
     (point.x, point.y)
 }
 
-pub fn point_inside_pill(
-    px: i32,
-    py: i32,
-    width: i32,
-    height: i32,
-    radius: i32
-) -> bool {
+pub fn point_inside_pill(px: i32, py: i32, width: i32, height: i32, radius: i32) -> bool {
     if px < 0 || py < 0 {
         return false;
     }

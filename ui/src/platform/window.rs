@@ -1,26 +1,46 @@
-use std::{sync::{Arc, Mutex, OnceLock}, time::Duration};
+use std::{
+    sync::{Arc, Mutex, OnceLock},
+    time::Duration,
+};
 
-use i_slint_backend_winit::{WinitWindowAccessor, winit::raw_window_handle::{HasWindowHandle, RawWindowHandle}};
+use i_slint_backend_winit::{
+    WinitWindowAccessor,
+    winit::raw_window_handle::{HasWindowHandle, RawWindowHandle},
+};
 use slint::ComponentHandle;
 use windows::Win32::{
     Foundation::{HWND, RECT},
-    UI::{HiDpi::GetDpiForWindow, WindowsAndMessaging::{
-        GWL_EXSTYLE, GWL_STYLE, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect, HWND_TOPMOST, LWA_ALPHA, SM_CXSCREEN, SW_HIDE, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetLayeredWindowAttributes, SetWindowLongPtrW, SetWindowPos, ShowWindow, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_POPUP
-    }}
+    UI::{
+        HiDpi::GetDpiForWindow,
+        WindowsAndMessaging::{
+            GWL_EXSTYLE, GWL_STYLE, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect,
+            HWND_TOPMOST, LWA_ALPHA, SM_CXSCREEN, SW_HIDE, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED,
+            SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetLayeredWindowAttributes,
+            SetWindowLongPtrW, SetWindowPos, ShowWindow, WS_EX_APPWINDOW, WS_EX_LAYERED,
+            WS_EX_TOOLWINDOW, WS_POPUP,
+        },
+    },
 };
 
-use crate::{geometry::SHELL_WIDTH, platform::{cursor::{cursor_position, point_inside_pill}, fullscreen::is_foreground_fullscreen, set_clickthrough}, state::{ContentState, IslandState}};
+use crate::{
+    geometry::SHELL_WIDTH,
+    platform::{
+        clickthrough::set_clickthrough,
+        cursor::{cursor_position, point_inside_pill},
+        fullscreen::is_foreground_fullscreen,
+    },
+    state::{ContentState, IslandState},
+};
 
 static WINDOW_HWND: OnceLock<isize> = OnceLock::new();
 
 pub fn initialize_window<T>(
-    component: &T, 
-    width: i32, 
+    component: &T,
+    width: i32,
     height: i32,
     state: Arc<Mutex<IslandState>>,
-    get_collapsed: impl Fn() -> bool + Send + 'static
-)
-where
+    get_collapsed: impl Fn() -> bool + Send + 'static,
+) where
     T: ComponentHandle + 'static,
 {
     let weak = component.as_weak();
@@ -30,10 +50,10 @@ where
             with_hwnd(&component, |hwnd| unsafe {
                 configure_window(hwnd);
                 position_top_center(hwnd, width, height);
-                
+
                 WINDOW_HWND.set(hwnd.0 as isize).ok();
                 set_clickthrough(hwnd, true);
-                
+
                 let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
 
                 start_clickthrough_loop(hwnd, state.clone(), get_collapsed);
@@ -108,83 +128,82 @@ unsafe fn position_top_center(hwnd: HWND, width: i32, height: i32) {
 }
 
 unsafe fn start_clickthrough_loop(
-    hwnd: HWND, 
-    state: Arc<Mutex<IslandState>>, 
-    get_collapsed: impl Fn() -> bool + Send + 'static
+    hwnd: HWND,
+    state: Arc<Mutex<IslandState>>,
+    get_collapsed: impl Fn() -> bool + Send + 'static,
 ) {
     let timer = Box::leak(Box::new(slint::Timer::default()));
-    
+
     let mut clickthrough_enabled = true;
-    
+
     let mut hidden_for_fullscreen = false;
 
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(16),
-        move || {
-            let fullscreen = is_foreground_fullscreen(hwnd);
-            if fullscreen {
-                if !hidden_for_fullscreen {
-                    let _ = unsafe { ShowWindow(hwnd, SW_HIDE) };
-                    hidden_for_fullscreen = true;
-                }
-
-                return;
+    timer.start(slint::TimerMode::Repeated, Duration::from_millis(16), move || {
+        let fullscreen = is_foreground_fullscreen(hwnd);
+        if fullscreen {
+            if !hidden_for_fullscreen {
+                let _ = unsafe { ShowWindow(hwnd, SW_HIDE) };
+                hidden_for_fullscreen = true;
             }
 
-            if hidden_for_fullscreen {
-                let _ = unsafe { ShowWindow(hwnd, SW_SHOWNOACTIVATE) };
-                hidden_for_fullscreen = false;
-            }
+            return;
+        }
 
-            let (mx, my) = cursor_position();
-            
-            let mut rect = RECT::default();
-            
-            unsafe { GetWindowRect(hwnd, &mut rect).ok(); }
+        if hidden_for_fullscreen {
+            let _ = unsafe { ShowWindow(hwnd, SW_SHOWNOACTIVATE) };
+            hidden_for_fullscreen = false;
+        }
 
-            let (logical, has_active) = {
-                let state = state.lock().unwrap();
-                (
-                    state.clone().bounds(),
-                    state.mic || state.camera || state.content != ContentState::Idle
-                )
-            };
-            let collapsed = get_collapsed();
-            
-            let dpi = unsafe { GetDpiForWindow(hwnd) };
-            let scale_factor = dpi as f64 / 96.0;
-            let bounds = logical.physical(scale_factor);
-            
-            let island_x = (SHELL_WIDTH - bounds.width) / 2;
-            
-            let island_left = rect.left + island_x;
-            let island_top = rect.top + if collapsed {
+        let (mx, my) = cursor_position();
+
+        let mut rect = RECT::default();
+
+        unsafe {
+            GetWindowRect(hwnd, &mut rect).ok();
+        }
+
+        let (logical, has_active) = {
+            let state = state.lock().unwrap();
+            (
+                state.clone().bounds(),
+                state.mic || state.camera || state.content != ContentState::Idle,
+            )
+        };
+        let collapsed = get_collapsed();
+
+        let dpi = unsafe { GetDpiForWindow(hwnd) };
+        let scale_factor = dpi as f64 / 96.0;
+        let bounds = logical.physical(scale_factor);
+
+        let island_x = (SHELL_WIDTH - bounds.width) / 2;
+
+        let island_left = rect.left + island_x;
+        let island_top = rect.top
+            + if collapsed {
                 ((-(logical.height - 10)) as f64 * scale_factor).round() as i32
             } else {
                 0
             };
 
-            let px = mx - island_left;
-            let py = my - island_top;
+        let px = mx - island_left;
+        let py = my - island_top;
 
-            let inside = if !collapsed && !has_active {
-                false
-            } else {
-                point_inside_pill(px, py, bounds.width, bounds.height, bounds.radius)
-            };
+        let inside = if !collapsed && !has_active {
+            false
+        } else {
+            point_inside_pill(px, py, bounds.width, bounds.height, bounds.radius)
+        };
 
-            unsafe {
-                if inside && clickthrough_enabled {
-                    set_clickthrough(hwnd, false);
-                    clickthrough_enabled = false;
-                }
-
-                if !inside && !clickthrough_enabled {
-                    set_clickthrough(hwnd, true);
-                    clickthrough_enabled = true;
-                }
+        unsafe {
+            if inside && clickthrough_enabled {
+                set_clickthrough(hwnd, false);
+                clickthrough_enabled = false;
             }
-        },
-    );
+
+            if !inside && !clickthrough_enabled {
+                set_clickthrough(hwnd, true);
+                clickthrough_enabled = true;
+            }
+        }
+    });
 }

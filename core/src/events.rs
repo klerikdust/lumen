@@ -10,11 +10,11 @@ pub enum CoreEvent {
 
     MicrophoneActive,
     MicrophoneInactive,
-    
+
     CameraActive,
     CameraInactive,
 
-    Arbitrary
+    Arbitrary,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -23,7 +23,7 @@ pub struct NotificationState {
 
     pub app_name: String,
     pub app_icon: Option<String>,
-    
+
     pub title: String,
     pub body: String,
 }
@@ -39,10 +39,10 @@ pub struct MediaState {
     pub album: String,
 
     pub album_art: Option<String>,
-    
+
     pub duration_ms: u64,
     pub position_ms: u64,
-    
+
     pub playing: bool,
 
     pub app_icon: Option<String>,
@@ -59,33 +59,31 @@ impl MediaState {
                 let local_elapsed_ms = elapsed.as_millis() as u64;
                 (self.position_ms + local_elapsed_ms).min(self.duration_ms)
             }
-            Err(_) => {
-                self.position_ms
-            }
+            Err(_) => self.position_ms,
         }
     }
 }
 
 impl PartialEq for MediaState {
     fn eq(&self, other: &Self) -> bool {
-        self.app_name == other.app_name &&
-        self.title == other.title &&
-        self.artist == other.artist &&
-        self.album == other.album &&
-        self.album_art == other.album_art &&
-        self.duration_ms == other.duration_ms &&
-        self.playing == other.playing &&
-        self.app_icon == other.app_icon 
+        self.app_name == other.app_name
+            && self.title == other.title
+            && self.artist == other.artist
+            && self.album == other.album
+            && self.album_art == other.album_art
+            && self.duration_ms == other.duration_ms
+            && self.playing == other.playing
+            && self.app_icon == other.app_icon
     }
 
     fn ne(&self, other: &Self) -> bool {
-        self.app_name != other.app_name ||
-        self.title != other.title ||
-        self.artist != other.artist ||
-        self.album != other.album ||
-        self.album_art != other.album_art ||
-        self.duration_ms != other.duration_ms ||
-        self.playing != other.playing ||
-        self.app_icon != other.app_icon 
+        self.app_name != other.app_name
+            || self.title != other.title
+            || self.artist != other.artist
+            || self.album != other.album
+            || self.album_art != other.album_art
+            || self.duration_ms != other.duration_ms
+            || self.playing != other.playing
+            || self.app_icon != other.app_icon
     }
 }

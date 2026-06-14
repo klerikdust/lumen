@@ -153,12 +153,14 @@ impl Lumen {
                 let Some(shell) = weak.upgrade() else {
                     return;
                 };
-                
+
                 let media = { runtime.media.read().unwrap().clone() };
 
                 if let Some(media) = media {
-                    if !media.playing { return; }
-                    
+                    if !media.playing {
+                        return;
+                    }
+
                     let global = shell.global::<IslandData>();
 
                     let spectrum = {
@@ -180,11 +182,9 @@ impl Lumen {
 
         let lumen = self.clone();
 
-        shell
-            .global::<IslandData>()
-            .on_action(move |action, payload| {
-                lumen.handle_action(&action, &payload);
-            });
+        shell.global::<IslandData>().on_action(move |action, payload| {
+            lumen.handle_action(&action, &payload);
+        });
     }
 
     fn handle_action(&self, action: &str, payload: &str) {
@@ -194,7 +194,9 @@ impl Lumen {
                 self.sync_shell();
             }
             "dismiss-notification" => {
-                let Ok(id) = payload.parse::<u64>() else { return; };
+                let Ok(id) = payload.parse::<u64>() else {
+                    return;
+                };
                 self.core.dismiss_notification(id);
             }
             "toggle-playback" => {
@@ -216,7 +218,9 @@ impl Lumen {
                 });
             }
             "seek" => {
-                let Ok(position) = payload.parse::<u64>() else { return; };
+                let Ok(position) = payload.parse::<u64>() else {
+                    return;
+                };
                 let core = self.core.clone();
                 std::thread::spawn(move || {
                     let _ = futures::executor::block_on(core.seek(position));

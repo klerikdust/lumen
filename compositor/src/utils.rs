@@ -14,7 +14,7 @@ use windows_core::Interface;
 
 pub fn import_d3d11_texture_to_wgpu(
     device: &wgpu::Device,
-    tex: &ID3D11Texture2D
+    tex: &ID3D11Texture2D,
 ) -> Result<Texture> {
     use wgpu::hal::api::Dx12;
 
@@ -46,11 +46,7 @@ pub fn import_d3d11_texture_to_wgpu(
             d3d12_resource,
             wgpu::TextureFormat::Bgra8Unorm,
             wgpu::TextureDimension::D2,
-            wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
             1,
             1,
         )

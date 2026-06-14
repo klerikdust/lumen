@@ -1,11 +1,14 @@
 use anyhow::Result;
-use wgpu::{Adapter, Device, DeviceDescriptor, ExperimentalFeatures, Features, Instance, InstanceDescriptor, Limits, Queue, RequestAdapterOptions};
+use wgpu::{
+    Adapter, Device, DeviceDescriptor, ExperimentalFeatures, Features, Instance,
+    InstanceDescriptor, Limits, Queue, RequestAdapterOptions,
+};
 
 pub struct GpuState {
     pub instance: Instance,
     pub adapter: Adapter,
     pub device: Device,
-    pub queue: Queue
+    pub queue: Queue,
 }
 
 impl GpuState {
@@ -19,7 +22,7 @@ impl GpuState {
             .request_adapter(&RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
-                compatible_surface: None
+                compatible_surface: None,
             })
             .await?;
 
@@ -31,10 +34,9 @@ impl GpuState {
                     .using_resolution(adapter.limits()),
                 experimental_features: ExperimentalFeatures::disabled(),
                 memory_hints: wgpu::MemoryHints::Performance,
-                trace: wgpu::Trace::Off
-            },
-        )
-        .await?;
+                trace: wgpu::Trace::Off,
+            })
+            .await?;
 
         Ok(Self { instance, adapter, device, queue })
     }

@@ -1,8 +1,25 @@
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Result, anyhow};
 use image::{DynamicImage, GenericImageView};
-use windows::{ApplicationModel::AppInfo, Foundation::Size, Storage::Streams::{Buffer, DataReader, InputStreamOptions}, Win32::{Foundation::SIZE, Graphics::Gdi::{BI_RGB, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC, GetDIBits, HBITMAP, ReleaseDC}, UI::Shell::{IShellItem2, IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_RESIZETOFIT}}};
+use windows::{
+    ApplicationModel::AppInfo,
+    Foundation::Size,
+    Storage::Streams::{Buffer, DataReader, InputStreamOptions},
+    Win32::{
+        Foundation::SIZE,
+        Graphics::Gdi::{
+            BI_RGB, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC, GetDIBits,
+            HBITMAP, ReleaseDC,
+        },
+        UI::Shell::{
+            IShellItem2, IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_RESIZETOFIT,
+        },
+    },
+};
 use windows_core::{HSTRING, Interface, PCWSTR};
 use winreg::HKLM;
 
@@ -12,7 +29,9 @@ struct OwnedDC(windows::Win32::Graphics::Gdi::HDC);
 
 impl Drop for OwnedDC {
     fn drop(&mut self) {
-        unsafe { ReleaseDC(None, self.0); }
+        unsafe {
+            ReleaseDC(None, self.0);
+        }
     }
 }
 
@@ -23,13 +42,18 @@ pub async fn resolve_app_icon(aumid: &str) -> Option<String> {
         return Some(cache_path.to_string_lossy().to_string());
     }
 
-    if let Ok(path) = get_logo(aumid, &cache_path).await { return path; }
-    if let Ok(path) = get_win32_icon(aumid, &cache_path) { return path;}
-    if let Ok(path) = get_icon_from_registry(aumid, &cache_path) { return path;}
+    if let Ok(path) = get_logo(aumid, &cache_path).await {
+        return path;
+    }
+    if let Ok(path) = get_win32_icon(aumid, &cache_path) {
+        return path;
+    }
+    if let Ok(path) = get_icon_from_registry(aumid, &cache_path) {
+        return path;
+    }
 
     None
 }
-
 
 async fn get_logo(aumid: &str, cache_path: &Path) -> Result<Option<String>> {
     if cache_path.exists() {
@@ -41,17 +65,14 @@ async fn get_logo(aumid: &str, cache_path: &Path) -> Result<Option<String>> {
     let app_info = AppInfo::GetFromAppUserModelId(&aumid_hstring)?;
     let display_info = app_info.DisplayInfo()?;
 
-    let logo_stream_reference = display_info
-        .GetLogo(Size { Width: 64.0, Height: 64.0 })?;
+    let logo_stream_reference = display_info.GetLogo(Size { Width: 64.0, Height: 64.0 })?;
 
     let stream = logo_stream_reference.OpenReadAsync()?.await?;
     let size = stream.Size()? as u32;
 
     let buffer = Buffer::Create(size)?;
 
-    stream
-        .ReadAsync(&buffer, size, InputStreamOptions::None)?
-        .await?;
+    stream.ReadAsync(&buffer, size, InputStreamOptions::None)?.await?;
 
     let reader = DataReader::FromBuffer(&buffer)?;
 
@@ -79,10 +100,8 @@ fn get_win32_icon(aumid: &str, cache_path: &Path) -> Result<Option<String>> {
     let path_hstring = HSTRING::from(&path);
 
     unsafe {
-        let shell_item: IShellItem2 = SHCreateItemFromParsingName(
-            PCWSTR(path_hstring.as_ptr()), 
-            None
-        )?;
+        let shell_item: IShellItem2 =
+            SHCreateItemFromParsingName(PCWSTR(path_hstring.as_ptr()), None)?;
 
         let image_factory: IShellItemImageFactory = shell_item.cast()?;
 
@@ -115,7 +134,7 @@ fn get_icon_from_registry(aumid: &str, cache_path: &Path) -> Result<Option<Strin
     let img = process_logo(img);
 
     std::fs::create_dir_all(icons_dir())?;
-    
+
     img.save_with_format(cache_path, image::ImageFormat::Png)?;
 
     Ok(Some(cache_path.to_string_lossy().to_string()))
@@ -141,13 +160,13 @@ unsafe fn save_hbitmap_to_png(hbitmap: HBITMAP, cache_path: &Path) -> Result<()>
         let mut buf = vec![0u8; 64 * 64 * 4];
 
         GetDIBits(
-            hdc.0, 
-            hbitmap, 
-            0, 
-            64, 
-            Some(buf.as_mut_ptr() as *mut _), 
-            &mut bmi, 
-            DIB_RGB_COLORS
+            hdc.0,
+            hbitmap,
+            0,
+            64,
+            Some(buf.as_mut_ptr() as *mut _),
+            &mut bmi,
+            DIB_RGB_COLORS,
         );
 
         let mut has_alpha = false;
@@ -166,13 +185,7 @@ unsafe fn save_hbitmap_to_png(hbitmap: HBITMAP, cache_path: &Path) -> Result<()>
             }
         }
 
-        image::save_buffer(
-            cache_path, 
-            &buf, 
-            64, 
-            64, 
-            image::ColorType::Rgba8
-        )?;
+        image::save_buffer(cache_path, &buf, 64, 64, image::ColorType::Rgba8)?;
 
         Ok(())
     }
@@ -190,10 +203,18 @@ fn process_logo(img: DynamicImage) -> DynamicImage {
         for y in 0..height {
             let pixel = img.get_pixel(x, y);
             if pixel[3] > 0 {
-                if x < min_x { min_x = x; }
-                if x > max_x { max_x = x; }
-                if y < min_y { min_y = y; }
-                if y > max_y { max_y = y; }
+                if x < min_x {
+                    min_x = x;
+                }
+                if x > max_x {
+                    max_x = x;
+                }
+                if y < min_y {
+                    min_y = y;
+                }
+                if y > max_y {
+                    max_y = y;
+                }
                 has_pixels = true;
             }
         }
@@ -211,10 +232,7 @@ fn process_logo(img: DynamicImage) -> DynamicImage {
 }
 
 fn cache_path(aumid: &str) -> PathBuf {
-    let safe = aumid.replace(
-        ['\\', '/', ':', '*', '?', '"', '<', '>', '|'], 
-        "_"
-    );
+    let safe = aumid.replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|'], "_");
 
     icons_dir().join(format!("{safe}.png"))
 }

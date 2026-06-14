@@ -4,15 +4,12 @@ use crate::motion::island::IslandMotionState;
 
 pub struct MotionDriver {
     pub island: IslandMotionState,
-    last_time: Instant
+    last_time: Instant,
 }
 
 impl MotionDriver {
     pub fn new() -> Self {
-        Self {
-            island: IslandMotionState::new(),
-            last_time: Instant::now()
-        }
+        Self { island: IslandMotionState::new(), last_time: Instant::now() }
     }
 
     pub fn update(&mut self) {

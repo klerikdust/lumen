@@ -5,7 +5,9 @@ use async_trait::async_trait;
 use rustfft::{FftPlanner, num_complex::Complex, num_traits::Float};
 use windows::Win32::{
     Media::Audio::{
-        AUDCLNT_BUFFERFLAGS_SILENT, AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, IAudioCaptureClient, IAudioClient, IMMDeviceEnumerator, MMDeviceEnumerator, eConsole, eRender
+        AUDCLNT_BUFFERFLAGS_SILENT, AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK,
+        IAudioCaptureClient, IAudioClient, IMMDeviceEnumerator, MMDeviceEnumerator, eConsole,
+        eRender,
     },
     System::Com::{CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx},
 };
@@ -19,13 +21,11 @@ pub struct AudioSpectrumService;
 
 #[async_trait]
 impl Service for AudioSpectrumService {
-    fn new() -> Self { Self }
+    fn new() -> Self {
+        Self
+    }
 
-    async fn run(
-        self,
-        _tx: EventSender,
-        runtime: Arc<RuntimeState>
-    ) {
+    async fn run(self, _tx: EventSender, runtime: Arc<RuntimeState>) {
         unsafe {
             if let Err(e) = run_loopback(runtime) {
                 eprintln!("[AudioSpectrum] {e}");
@@ -34,26 +34,19 @@ impl Service for AudioSpectrumService {
     }
 }
 
-
 unsafe fn run_loopback(runtime: Arc<RuntimeState>) -> Result<()> {
     unsafe {
         let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
-    
-        let enumerator: IMMDeviceEnumerator = CoCreateInstance(
-            &MMDeviceEnumerator, 
-            None, 
-            CLSCTX_ALL
-        )?;
+
+        let enumerator: IMMDeviceEnumerator =
+            CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
         let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
-    
-        let audio_client: IAudioClient = device.Activate(
-            CLSCTX_ALL, 
-            Some(null_mut())
-        )?;
-    
+
+        let audio_client: IAudioClient = device.Activate(CLSCTX_ALL, Some(null_mut()))?;
+
         let pwfx = audio_client.GetMixFormat()?;
         let format = *pwfx;
-    
+
         audio_client.Initialize(
             AUDCLNT_SHAREMODE_SHARED,
             AUDCLNT_STREAMFLAGS_LOOPBACK,
@@ -62,58 +55,50 @@ unsafe fn run_loopback(runtime: Arc<RuntimeState>) -> Result<()> {
             pwfx,
             None,
         )?;
-    
+
         let capture: IAudioCaptureClient = audio_client.GetService()?;
-    
+
         audio_client.Start()?;
-    
+
         let mut planner = FftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(FFT_SIZE);
-    
+
         let mut ring = VecDeque::<f32>::new();
         let window: Vec<f32> = (0..FFT_SIZE)
-            .map(|i| {
-                0.5 * (1.0 - (2.0 * PI * i as f32 / (FFT_SIZE as f32)).cos())
-            })
+            .map(|i| 0.5 * (1.0 - (2.0 * PI * i as f32 / (FFT_SIZE as f32)).cos()))
             .collect();
-    
+
         let mut smooth = [0.0f32; NUM_BANDS];
 
         let mut buffer = vec![Complex { re: 0.0f32, im: 0.0f32 }; FFT_SIZE];
         let mut mags = vec![0.0f32; FFT_SIZE / 2];
-    
+
         loop {
             let mut packet = capture.GetNextPacketSize()?;
-            
+
             while packet > 0 {
                 let mut data_ptr: *mut u8 = null_mut();
                 let mut frames: u32 = 0;
                 let mut flags: u32 = 0;
-    
-                capture.GetBuffer(
-                    &mut data_ptr, 
-                    &mut frames, 
-                    &mut flags, 
-                    None, 
-                    None
-                )?;
-    
+
+                capture.GetBuffer(&mut data_ptr, &mut frames, &mut flags, None, None)?;
+
                 if flags as i32 & AUDCLNT_BUFFERFLAGS_SILENT.0 != 0 {
                     for _ in 0..frames {
                         ring.push_back(0.0);
                     }
                 } else {
                     let samples = std::slice::from_raw_parts(
-                        data_ptr as *const f32, 
-                        frames as usize * format.nChannels as usize
+                        data_ptr as *const f32,
+                        frames as usize * format.nChannels as usize,
                     );
-    
+
                     for frame in samples.chunks(format.nChannels as usize) {
                         let mono = frame.iter().sum::<f32>() / frame.len() as f32;
                         ring.push_back(mono);
                     }
                 }
-    
+
                 capture.ReleaseBuffer(frames)?;
                 packet = capture.GetNextPacketSize()?;
             }
@@ -121,7 +106,7 @@ unsafe fn run_loopback(runtime: Arc<RuntimeState>) -> Result<()> {
             while ring.len() > FFT_SIZE * 4 {
                 ring.pop_front();
             }
-    
+
             while ring.len() >= FFT_SIZE {
                 for i in 0..FFT_SIZE {
                     let sample = ring.pop_front().unwrap_or(0.0);
@@ -148,7 +133,7 @@ unsafe fn run_loopback(runtime: Arc<RuntimeState>) -> Result<()> {
 
                 *runtime.spectrum.write().unwrap() = smooth;
             }
-    
+
             std::thread::sleep(Duration::from_millis(5));
         }
     }

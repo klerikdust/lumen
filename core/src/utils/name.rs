@@ -1,11 +1,22 @@
-use std::{collections::HashMap, sync::{LazyLock, Mutex}};
+use std::{
+    collections::HashMap,
+    sync::{LazyLock, Mutex},
+};
 
 use anyhow::Result;
-use windows::{ApplicationModel::AppInfo, Win32::{Foundation::PROPERTYKEY, System::Com::CoTaskMemFree, UI::Shell::{IShellItem2, SHCreateItemFromParsingName, SHLoadIndirectString}}};
+use windows::{
+    ApplicationModel::AppInfo,
+    Win32::{
+        Foundation::PROPERTYKEY,
+        System::Com::CoTaskMemFree,
+        UI::Shell::{IShellItem2, SHCreateItemFromParsingName, SHLoadIndirectString},
+    },
+};
 use windows_core::{HSTRING, PCWSTR};
-use winreg::HKLM ;
+use winreg::HKLM;
 
-static NAME_CACHE: LazyLock<Mutex<HashMap<String, String>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+static NAME_CACHE: LazyLock<Mutex<HashMap<String, String>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 const PKEY_SOFTWARE_PRODUCTNAME: PROPERTYKEY = PROPERTYKEY {
     fmtid: windows::core::GUID::from_u128(0x0CEF7D53_FA64_11D1_A203_0000F81FEDEE),
@@ -17,9 +28,15 @@ pub fn resolve_name_from_aumid(aumid: &str) -> String {
         return name.clone();
     }
 
-    if let Ok(name) = get_display_name(aumid) { return name; }
-    if let Ok(name) = get_win32_app_name(aumid) { return name; }
-    if let Ok(name) = get_name_from_registry(aumid) { return name; }
+    if let Ok(name) = get_display_name(aumid) {
+        return name;
+    }
+    if let Ok(name) = get_win32_app_name(aumid) {
+        return name;
+    }
+    if let Ok(name) = get_name_from_registry(aumid) {
+        return name;
+    }
 
     aumid.to_string()
 }
@@ -41,10 +58,8 @@ fn get_win32_app_name(aumid: &str) -> Result<String> {
     let path_hstring = HSTRING::from(&path);
 
     unsafe {
-        let shell_item: IShellItem2 = SHCreateItemFromParsingName(
-            PCWSTR(path_hstring.as_ptr()), 
-            None
-        )?;
+        let shell_item: IShellItem2 =
+            SHCreateItemFromParsingName(PCWSTR(path_hstring.as_ptr()), None)?;
 
         if let Ok(name) = shell_item.GetString(&PKEY_SOFTWARE_PRODUCTNAME) {
             let s = name.to_string()?;
@@ -68,7 +83,6 @@ fn get_win32_app_name(aumid: &str) -> Result<String> {
 
         Ok(display_name)
     }
-
 }
 
 fn get_name_from_registry(aumid: &str) -> Result<String> {
@@ -77,11 +91,7 @@ fn get_name_from_registry(aumid: &str) -> Result<String> {
 
     let name: String = key.get_value("DisplayName")?;
 
-    let display_name = if name.starts_with("@") {
-        resolve_indirect_string(&name)?
-    } else {
-        name
-    };
+    let display_name = if name.starts_with("@") { resolve_indirect_string(&name)? } else { name };
 
     NAME_CACHE.lock().unwrap().insert(aumid.to_string(), display_name.to_string());
     Ok(display_name)
@@ -92,11 +102,7 @@ fn resolve_indirect_string(indirect: &str) -> Result<String> {
     let mut buf = [0u16; 256];
 
     unsafe {
-        SHLoadIndirectString(
-            PCWSTR(input.as_ptr()), 
-            &mut buf, 
-            None
-        )?;
+        SHLoadIndirectString(PCWSTR(input.as_ptr()), &mut buf, None)?;
     }
 
     let end = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());

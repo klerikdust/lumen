@@ -4,7 +4,8 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use windows::{
     UI::Notifications::{
-        Management::{UserNotificationListener, UserNotificationListenerAccessStatus}, NotificationKinds, UserNotification
+        Management::{UserNotificationListener, UserNotificationListenerAccessStatus},
+        NotificationKinds, UserNotification,
     },
     Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx},
 };
@@ -25,10 +26,7 @@ pub struct NotificationService {
 #[async_trait]
 impl Service for NotificationService {
     fn new() -> Self {
-        Self {
-            seen: HashSet::new(),
-            initialized: false,
-        }
+        Self { seen: HashSet::new(), initialized: false }
     }
 
     async fn run(mut self, tx: EventSender, runtime: Arc<RuntimeState>) {
@@ -64,7 +62,9 @@ impl Service for NotificationService {
                 self.seen.retain(|id| live_ids.contains(id));
 
                 for notification in notifications {
-                    let Ok(id) = notification.Id() else { continue; };
+                    let Ok(id) = notification.Id() else {
+                        continue;
+                    };
 
                     if self.seen.contains(&id) {
                         continue;
@@ -109,11 +109,7 @@ impl Service for NotificationService {
                     body,
                 };
 
-                runtime
-                    .notifications
-                    .lock()
-                    .unwrap()
-                    .push_back(state.clone());
+                runtime.notifications.lock().unwrap().push_back(state.clone());
 
                 let _ = tx.send(CoreEvent::NotificationReceived(state));
             }

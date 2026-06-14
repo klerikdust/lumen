@@ -18,12 +18,12 @@ fn load_image(path: Option<&str>, fallback: &Image) -> Image {
 pub fn media_to_slint(
     media: &MediaState,
     fallback_app: &Image,
-    fallback_album: &Image
+    fallback_album: &Image,
 ) -> SlintMediaState {
     SlintMediaState {
         app_name: SharedString::from(&media.app_name),
         app_icon: load_image(media.app_icon.as_deref(), fallback_app),
-        
+
         title: SharedString::from(&media.title),
         album: SharedString::from(&media.album),
         artist: SharedString::from(&media.artist),
@@ -45,7 +45,7 @@ pub fn notification_to_slint(
 
         app_name: SharedString::from(&notif.app_name),
         app_icon: load_image(notif.app_icon.as_deref(), fallback_app),
-        
+
         title: SharedString::from(&notif.title),
         body: SharedString::from(&notif.body),
     }

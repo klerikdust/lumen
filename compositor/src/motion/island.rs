@@ -4,7 +4,7 @@ pub struct IslandMotionState {
     pub scale: SpringValue,
     pub radius: SpringValue,
     pub glow: SpringValue,
-    pub shadow: SpringValue
+    pub shadow: SpringValue,
 }
 
 impl IslandMotionState {
@@ -13,7 +13,7 @@ impl IslandMotionState {
             scale: SpringValue::new(1.0),
             radius: SpringValue::new(1.0),
             glow: SpringValue::new(0.3),
-            shadow: SpringValue::new(0.5)
+            shadow: SpringValue::new(0.5),
         }
     }
 

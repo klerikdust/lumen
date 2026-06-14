@@ -16,7 +16,7 @@ impl IslandBounds {
         PhysicalBounds {
             width: (self.width as f64 * scale_factor).round() as i32,
             height: (self.height as f64 * scale_factor).round() as i32,
-            radius: (self.radius as f64 * scale_factor).round() as i32
+            radius: (self.radius as f64 * scale_factor).round() as i32,
         }
     }
 }
@@ -26,5 +26,5 @@ pub struct PhysicalBounds {
     pub width: i32,
     pub height: i32,
 
-    pub radius: i32
+    pub radius: i32,
 }
