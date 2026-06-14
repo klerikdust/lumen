@@ -1,16 +1,21 @@
 # Lumen
 
-A Dynamic Island experience for Windows 11, built with [Rust](https://www.rust-lang.org/) and [Slint](https://slint.dev/).
-
-<!-- screenshot placeholder -->
-<video src="demos/All Functionality.mp4" autoplay loop muted playsinline width="100%"></video>
-
-> *Screenshot: Lumen in action on Windows 11*
-
 [![MIT licensed](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Release](https://img.shields.io/github/v/release/Risuleia/Lumen)](https://github.com/Risuleia/Lumen/releases/latest)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011-blue)](https://github.com/Risuleia/Lumen/releases/latest)
 [![Release](https://github.com/Risuleia/Lumen/actions/workflows/release.yml/badge.svg)](https://github.com/Risuleia/Lumen/actions/workflows/release.yml)
+
+A Dynamic Island experience for Windows 11, built with [Rust](https://www.rust-lang.org/) and [Slint](https://slint.dev/).
+
+<!-- screenshot placeholder -->
+<!-- <video src="demos/All Functionality.mp4" autoplay loop muted playsinline width="100%"></video> -->
+
+
+https://github.com/user-attachments/assets/0ce76e0a-d8f0-42b0-b252-6c231d26d05b
+
+
+
+> *Screenshot: Lumen in action on Windows 11*
 
 ---
 
@@ -21,14 +26,25 @@ Lumen brings a Dynamic Island-style notification and media hub to Windows 11. It
 <table>
   <tr>
     <td>
-      <video src="demos/Media.mp4" autoplay loop muted playsinline width="100%"></video>
-    </td>
-    <td>
-      <video src="demos/Notification.mp4" autoplay loop muted playsinline width="100%"></video>
-    </td>
-    <td>
-      <video src="demos/Indicators.mp4" autoplay loop muted playsinline width="100%"></video>
-    </td>
+      
+https://github.com/user-attachments/assets/d5f48992-d564-48c2-904c-f5ae72705143
+
+
+  </td>
+  <td>
+      
+
+https://github.com/user-attachments/assets/4ed5ca52-7810-429a-8330-51edd28b0a11
+
+
+  </td>
+  <td>
+    
+
+https://github.com/user-attachments/assets/167402c9-0f49-49b9-9ce6-e293aae93f75
+
+
+  </td>
   </tr>
 </table>
 
