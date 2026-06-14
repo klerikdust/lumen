@@ -1,3 +1,5 @@
 /target
 *.ps1
 dist
+*.pfx
+*.b64
