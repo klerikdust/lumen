@@ -4,11 +4,11 @@ export component MediaControls inherits HorizontalLayout {
     spacing: 1rem;
     alignment: center;
 
-    property <length> size: 60px;
+    property <length> size: 36px;
     
     prev := Rectangle {
-        width: 32px; 
-        height: 32px; 
+        width: size; 
+        height: size; 
 
         Image {
             width: parent.width;
@@ -27,8 +27,8 @@ export component MediaControls inherits HorizontalLayout {
         }
     }
     play-pause := Rectangle {
-        width: 32px; 
-        height: 32px; 
+        width: size; 
+        height: size; 
 
         Image {
             width: parent.width;
@@ -48,8 +48,8 @@ export component MediaControls inherits HorizontalLayout {
     }
 
     next := Rectangle {
-        width: 32px; 
-        height: 32px; 
+        width: size; 
+        height: size; 
 
         Image {
             width: parent.width;

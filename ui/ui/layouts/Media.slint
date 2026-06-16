@@ -127,7 +127,7 @@ component ExpandedMedia inherits VerticalLayout {
 
         Rectangle {
             width: parent.width;
-            background: red;
+            height: media-controls.preferred-height;
             vertical-stretch: 0;
 
             pure function pad-zero(n: int) -> string {
@@ -159,7 +159,7 @@ component ExpandedMedia inherits VerticalLayout {
                 horizontal-alignment: left;
             }
 
-            MediaControls {}
+            media-controls := MediaControls {}
 
             Text {
                 x: parent.width - self.width;
