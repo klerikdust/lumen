@@ -50,14 +50,16 @@ Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; AppUserModelId: "{#AUMID}"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon; AppUserModelId: "{#AUMID}"
 
 [Registry]
 Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#AppName}"; ValueData: """{app}\{#AppExeName}"""; Flags: uninsdeletevalue; Tasks: startup
-Root: HKCU; Subkey: "SOFTWARE\Classes\AppUserModelId\{#AUMID}"; ValueType: string; ValueName: "DispalyName"; ValueData: "{#AppName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "SOFTWARE\Classes\AppUserModelId\{#AUMID}"; ValueType: string; ValueName: "DisplayName"; ValueData: "{#AppName}"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "SOFTWARE\Classes\AppUserModelId\{#AUMID}"; ValueType: string; ValueName: "IconUri"; ValueData: "{app}\assets\lumen.png"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "SOFTWARE\Classes\AppUserModelId\{#AUMID}"; ValueType: dword; ValueName: "ShowInNotificationCenter"; ValueData: 1; Flags: uninsdeletekey
+Root: HKCU; Subkey: "SOFTWARE\Classes\AppUserModelId\{#AUMID}"; ValueType: string; ValueName: "IconBackgroundColor"; ValueData: "FF000000"; Flags: uninsdeletekey
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent

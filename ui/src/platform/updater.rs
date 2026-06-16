@@ -1,5 +1,6 @@
 use std::{
     fs,
+    os::windows::process::CommandExt,
     path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -11,7 +12,7 @@ use self_update::cargo_crate_version;
 use crate::platform::toast::show_update_toast;
 
 const GITHUB_OWNER: &str = "Risuleia";
-const GITHUB_REPO: &str = "Risuleia";
+const GITHUB_REPO: &str = "Lumen";
 const CHECK_INTERVAL_SECS: u64 = 60 * 60 * 24;
 
 #[derive(Clone, PartialEq)]
@@ -107,7 +108,13 @@ pub fn download_and_apply_update() -> Result<()> {
 
     self_update::Download::from_url(&asset.download_url).download_to(installer_file)?;
 
-    std::process::Command::new(&installer_path).args(["/SILENT", "/CLOSEAPPLICATIONS"]).spawn()?;
+    const DETACHED_PROCESS: u32 = 0x00000008;
+
+    std::process::Command::new(&installer_path)
+        .arg("/SILENT")
+        .arg("/CLOSEAPPLICATIONS")
+        .creation_flags(DETACHED_PROCESS)
+        .spawn()?;
 
     Ok(())
 }
@@ -128,8 +135,8 @@ fn should_check() -> bool {
 }
 
 fn record_check() {
+    std::fs::create_dir_all(cache_dir()).ok();
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-
     let _ = std::fs::write(last_check_path(), now.to_string());
 }
 
