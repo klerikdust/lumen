@@ -16,10 +16,10 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.100"
-i-slint-backend-winit = "1.14.1"
+i-slint-backend-winit = { version = "1.14.1", features = ["renderer-skia"] }
 lumen-core = { path = "../core" }
 single-instance = "0.3.3"
-slint = { version = "1.14.1", default-features = false, features = ["compat-1-2", "std", "backend-winit", "renderer-femtovg"] }
+slint = { version = "1.14.1", default-features = false, features = ["compat-1-2", "std", "backend-winit", "renderer-skia"] }
 windows = { version = "0.62.2", features = [
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",
