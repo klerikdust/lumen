@@ -1,6 +1,7 @@
 import { IslandData } from "../global.slint";
 import { Metrics } from "../theme/Metrics.slint";
 import { Colors } from "../theme/Colors.slint";
+import { ElidedText } from "../components/ElidedText.slint";
 
 component CollapsedNotification inherits HorizontalLayout {
     alignment: start;
@@ -22,26 +23,21 @@ component CollapsedNotification inherits HorizontalLayout {
     }
 
     VerticalLayout {
-        horizontal-stretch: 1;
-        vertical-stretch: 1;
         alignment: center;
+        spacing: 4px;
+        y: (parent.height - self.height) / 2;
 
-        Text {
+        ElidedText {
             text: IslandData.notification.title;
-            overflow: elide;
             font-size: Metrics.fs-125;
-            color: Colors.text-primary;
-            horizontal-alignment: left;
-            letter-spacing: -0.2px;
+            txt-color: Colors.text-primary;
         }
 
-        Text {
+        ElidedText {
             text: IslandData.notification.body;
-            overflow: elide;
+            txt-color: Colors.text-secondary;
             font-size: Metrics.fs-120;
-            color: Colors.text-secondary;
-            horizontal-alignment: left;
-            letter-spacing: -0.2px;
+            vertical-stretch: 0;
         }
     }
 }
@@ -83,41 +79,35 @@ component ExpandedNotification inherits VerticalLayout {
         }
     }
 
-    Rectangle {
-        clip: true;
+    VerticalLayout {
+        alignment: start;
+        spacing: 4px;
 
-        VerticalLayout {
-            alignment: start;
-            spacing: 4px;
-    
-            Text {
-                vertical-stretch: 0;
-                text: IslandData.notification.title;
-                overflow: clip;
-                font-size: Metrics.fs-150;
-                font-weight: 600;
-                color: Colors.text-primary;
-                horizontal-alignment: left;
-                letter-spacing: -0.2px;
-            }
-    
-            Text {
-                vertical-stretch: 1;
-                text: IslandData.notification.body;
-                overflow: elide;
-                font-size: Metrics.fs-125;
-                color: Colors.text-secondary;
-                horizontal-alignment: left;
-                letter-spacing: -0.2px;
-                wrap: word-wrap;
-            }
+        Text {
+            vertical-stretch: 0;
+            text: IslandData.notification.title;
+            overflow: elide;
+            font-size: Metrics.fs-150;
+            font-weight: 600;
+            color: Colors.text-primary;
+            horizontal-alignment: left;
+            letter-spacing: -0.2px;
+        }
+
+        Text {
+            text: IslandData.notification.body;
+            overflow: elide;
+            font-size: Metrics.fs-125;
+            color: Colors.text-secondary;
+            horizontal-alignment: left;
+            letter-spacing: -0.2px;
+            wrap: word-wrap;
         }
     }
 }
 
 export component Notification inherits Rectangle {
-    horizontal-stretch: 1;
-    vertical-stretch: 1;
+    clip: true;
 
     if IslandData.expanded: ExpandedNotification {
         width: root.width;

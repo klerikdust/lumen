@@ -1,0 +1,29 @@
+
+export component ElidedText inherits Rectangle {
+    in property <length> font-size;
+    in property <int> font-weight;
+    in property <color> txt-color;
+    in property <string> text;
+    in property <TextWrap> wrap: no-wrap;
+
+    height: t.font-size;
+    clip: true;
+
+    VerticalLayout {
+        alignment: center;
+
+        t := Text {
+            x: 0;
+            text: text;
+            font-size: font-size;
+            color: txt-color;
+            wrap: wrap;
+            overflow: elide;
+            font-weight: font-weight;
+            horizontal-alignment: left;
+            vertical-alignment: center;
+            letter-spacing: -0.2px;
+            horizontal-stretch: 0;
+        }
+    }
+}

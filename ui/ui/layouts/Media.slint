@@ -11,7 +11,7 @@ component CollapsedMedia inherits HorizontalLayout {
 
     Rectangle {
         y: (parent.height - self.height) / 2;
-        
+
         height: parent.height;
         width: parent.height;
         border-radius: 4px;
@@ -38,10 +38,10 @@ component ExpandedMedia inherits VerticalLayout {
         alignment: start;
         spacing: 8px;
         vertical-stretch: 0;
-        
+
         Rectangle {
             y: (parent.height - self.height) / 2;
-            
+
             height: 18px;
             width: 18px;
             border-radius: 2px;
@@ -70,28 +70,27 @@ component ExpandedMedia inherits VerticalLayout {
         clip: true;
 
         HorizontalLayout {
-            width: parent.width;
+            height: parent.height;
             spacing: 1.5rem;
-    
+
             Rectangle {
                 horizontal-stretch: 0;
                 width: 80px;
                 height: 80px;
                 border-radius: 16px;
                 clip: true;
-    
+
                 Image {
                     width: parent.width;
                     height: parent.height;
                     source: IslandData.media.album-art;
                 }
             }
-    
+
             VerticalLayout {
-                horizontal-stretch: 1;
                 alignment: center;
                 spacing: 4px;
-    
+
                 Text {
                     font-size: Metrics.fs-150;
                     text: IslandData.media.title.is-empty ? "(unnamed title)" : IslandData.media.title;
@@ -99,35 +98,36 @@ component ExpandedMedia inherits VerticalLayout {
                     font-weight: 700;
                     horizontal-alignment: left;
                     letter-spacing: -0.2px;
-                    overflow: clip;
                 }
+
                 Text {
                     font-size: Metrics.fs-120;
                     text: IslandData.media.album.is-empty ? "(unnamed album)" : IslandData.media.album;
                     color: Colors.text-primary;
                     horizontal-alignment: left;
                     letter-spacing: -0.2px;
-                    overflow: clip;
                 }
+
                 Text {
                     font-size: Metrics.fs-120;
                     text: IslandData.media.artist.is-empty ? "(unnamed artist)" : IslandData.media.artist;
                     color: Colors.text-secondary;
                     horizontal-alignment: left;
                     letter-spacing: -0.2px;
-                    overflow: clip;
                 }
             }
         }
     }
 
     VerticalLayout {
-        horizontal-stretch: 1;
+        width: parent.width;
         vertical-stretch: 0;
         spacing: 4px;
         alignment: center;
 
-        GridLayout {
+        Rectangle {
+            width: parent.width;
+            background: red;
             vertical-stretch: 0;
 
             pure function pad-zero(n: int) -> string {
@@ -148,30 +148,28 @@ component ExpandedMedia inherits VerticalLayout {
                 }
             }
 
-            Row {
-                Text {
-                    col: 0;
-                    text: format-ms(IslandData.media-position);
-                    font-size: Metrics.fs-100;
-                    color: Colors.text-secondary;
-                    letter-spacing: -0.2px;
-                    vertical-alignment: bottom;
-                    horizontal-alignment: left;
-                }
-    
-                MediaControls {
-                    col: 1;
-                }
-    
-                Text {
-                    col: 2;
-                    text: format-ms(IslandData.media.duration-ms);
-                    font-size: Metrics.fs-100;
-                    color: Colors.text-secondary;
-                    letter-spacing: -0.2px;
-                    vertical-alignment: bottom;
-                    horizontal-alignment: right;
-                }
+            Text {
+                x: 0;
+                y: parent.height - self.height;
+                text: format-ms(IslandData.media-position);
+                font-size: Metrics.fs-100;
+                color: Colors.text-secondary;
+                letter-spacing: -0.2px;
+                vertical-alignment: bottom;
+                horizontal-alignment: left;
+            }
+
+            MediaControls {}
+
+            Text {
+                x: parent.width - self.width;
+                y: parent.height - self.height;
+                text: format-ms(IslandData.media.duration-ms);
+                font-size: Metrics.fs-100;
+                color: Colors.text-secondary;
+                letter-spacing: -0.2px;
+                vertical-alignment: bottom;
+                horizontal-alignment: right;
             }
         }
 
@@ -182,9 +180,6 @@ component ExpandedMedia inherits VerticalLayout {
 }
 
 export component Media inherits Rectangle {
-    horizontal-stretch: 1;
-    vertical-stretch: 1;
-
     if IslandData.expanded: ExpandedMedia {
         width: root.width;
         height: root.height;
