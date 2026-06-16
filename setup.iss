@@ -55,11 +55,12 @@ Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon; AppUserModelId: "{#AUMID}"
 
 [Registry]
-Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#AppName}"; ValueData: """{app}\{#AppExeName}"""; Flags: uninsdeletevalue; Tasks: startup
-Root: HKCU; Subkey: "SOFTWARE\Classes\AppUserModelId\{#AUMID}"; ValueType: string; ValueName: "DisplayName"; ValueData: "{#AppName}"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "SOFTWARE\Classes\AppUserModelId\{#AUMID}"; ValueType: string; ValueName: "IconUri"; ValueData: "{app}\assets\lumen.png"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "SOFTWARE\Classes\AppUserModelId\{#AUMID}"; ValueType: dword; ValueName: "ShowInNotificationCenter"; ValueData: 1; Flags: uninsdeletekey
-Root: HKCU; Subkey: "SOFTWARE\Classes\AppUserModelId\{#AUMID}"; ValueType: string; ValueName: "IconBackgroundColor"; ValueData: "FF000000"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#AppName}"; ValueData: """{app}\{#AppExeName}"""; Flags: uninsdeletevalue; Tasks: startup
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\{#AUMID}"; ValueData: ""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\{#AUMID}"; ValueType: string; ValueName: "DisplayName"; ValueData: "{#AppName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\{#AUMID}"; ValueType: string; ValueName: "IconUri"; ValueData: "{app}\assets\lumen.png"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\{#AUMID}"; ValueType: dword; ValueName: "ShowInNotificationCenter"; ValueData: 1; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\{#AUMID}"; ValueType: string; ValueName: "IconBackgroundColor"; ValueData: "FF000000"; Flags: uninsdeletekey
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
