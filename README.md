@@ -1,27 +1,30 @@
+<p align="center">
+  <img src="./assets/lumen.png" alt="Lumen" width="300">
+</p>
+
 # Lumen
 
-[![MIT licensed](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Release](https://img.shields.io/github/v/release/Risuleia/Lumen)](https://github.com/Risuleia/Lumen/releases/latest)
-[![Platform](https://img.shields.io/badge/platform-Windows%2011-blue)](https://github.com/Risuleia/Lumen/releases/latest)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010+-blue)](https://github.com/Risuleia/Lumen/releases/latest)
+
 [![Release](https://github.com/Risuleia/Lumen/actions/workflows/release.yml/badge.svg)](https://github.com/Risuleia/Lumen/actions/workflows/release.yml)
+[![Release](https://img.shields.io/github/v/release/Risuleia/Lumen)](https://github.com/Risuleia/Lumen/releases/latest)
+[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Risuleia/Lumen/total)](https://github.com/Risuleia/Lumen/releases/)
 
-A Dynamic Island experience for Windows 11, built with [Rust](https://www.rust-lang.org/) and [Slint](https://slint.dev/).
-
-<!-- screenshot placeholder -->
-<!-- <video src="demos/All Functionality.mp4" autoplay loop muted playsinline width="100%"></video> -->
+A Dynamic Island experience for Windows 10+, built with [Rust](https://www.rust-lang.org/) and [Slint](https://slint.dev/).
 
 
 https://github.com/user-attachments/assets/0ce76e0a-d8f0-42b0-b252-6c231d26d05b
 
 
 
-> *Screenshot: Lumen in action on Windows 11*
+> *Video: Lumen in action on Windows 11*
 
 ---
 
 ## What is Lumen?
 
-Lumen brings a Dynamic Island-style notification and media hub to Windows 11. It lives at the top center of your screen as a pill-shaped overlay, surfacing system activity — media playback, notifications, microphone and camera usage — without interrupting your workflow.
+Lumen brings a Dynamic Island-style notification and media hub to Windows. It lives at the top center of your screen as a pill-shaped overlay, surfacing system activity — media playback, notifications, microphone and camera usage — without interrupting your workflow.
 
 <table>
   <tr>
@@ -80,7 +83,7 @@ The installer will:
 
 ### Requirements
 
-- Windows 11
+- Windows 10+
 - Notification access must be granted when prompted on first launch
 
 ---
@@ -181,7 +184,7 @@ Manual update checks are available via the system tray menu.
 
 ## Contributing
 
-Contributions are welcome, especially int he following areas:
+Contributions are welcome, especially in the following areas:
 - Multi-monitor support
 - Additional media sources
 - Accessibility improvements
