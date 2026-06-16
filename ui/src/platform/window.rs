@@ -10,14 +10,14 @@ use i_slint_backend_winit::{
 use slint::ComponentHandle;
 use windows::Win32::{
     Foundation::{HWND, RECT},
+    Graphics::Gdi::UpdateWindow,
     UI::{
         HiDpi::GetDpiForWindow,
         WindowsAndMessaging::{
             GWL_EXSTYLE, GWL_STYLE, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect,
             HWND_TOPMOST, LWA_ALPHA, SM_CXSCREEN, SW_HIDE, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED,
-            SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetLayeredWindowAttributes,
-            SetWindowLongPtrW, SetWindowPos, ShowWindow, WS_EX_APPWINDOW, WS_EX_LAYERED,
-            WS_EX_TOOLWINDOW, WS_POPUP,
+            SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SetLayeredWindowAttributes, SetWindowLongPtrW,
+            SetWindowPos, ShowWindow, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_POPUP,
         },
     },
 };
@@ -45,7 +45,7 @@ pub fn initialize_window<T>(
 {
     let weak = component.as_weak();
 
-    slint::Timer::single_shot(Duration::from_millis(50), move || {
+    slint::Timer::single_shot(Duration::from_millis(200), move || {
         if let Some(component) = weak.upgrade() {
             with_hwnd(&component, |hwnd| unsafe {
                 configure_window(hwnd);
@@ -55,6 +55,7 @@ pub fn initialize_window<T>(
                 set_clickthrough(hwnd, true);
 
                 let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+                let _ = UpdateWindow(hwnd);
 
                 start_clickthrough_loop(hwnd, state.clone(), get_collapsed);
             });
@@ -99,12 +100,12 @@ unsafe fn configure_window(hwnd: HWND) {
 
         SetWindowPos(
             hwnd,
-            None,
+            Some(HWND_TOPMOST),
             0,
             0,
             0,
             0,
-            SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+            SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
         )
         .ok();
     }
@@ -152,6 +153,19 @@ unsafe fn start_clickthrough_loop(
         if hidden_for_fullscreen {
             let _ = unsafe { ShowWindow(hwnd, SW_SHOWNOACTIVATE) };
             hidden_for_fullscreen = false;
+        }
+
+        unsafe {
+            SetWindowPos(
+                hwnd,
+                Some(HWND_TOPMOST),
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            )
+            .ok();
         }
 
         let (mx, my) = cursor_position();
