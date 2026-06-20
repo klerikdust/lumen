@@ -1,22 +1,28 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
 use tray_icon::{
     TrayIcon, TrayIconBuilder,
-    menu::{IconMenuItem, Menu, MenuItem, PredefinedMenuItem},
+    menu::{CheckMenuItem, IconMenuItem, Menu, MenuItem, PredefinedMenuItem},
 };
 use windows::{
     Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW},
     core::PCSTR,
 };
 
-use crate::platform::updater::{
-    UpdateState, download_and_apply_update, force_check_for_update, start_update_check,
+use crate::{
+    platform::updater::{
+        UpdateState, download_and_apply_update, force_check_for_update, start_update_check,
+    },
+    settings::UserSettings,
 };
 
-pub fn initialize_tray() -> (TrayIcon, slint::Timer) {
+pub fn initialize_tray(always_on_top: Arc<AtomicBool>) -> (TrayIcon, slint::Timer) {
     unsafe {
         let uxtheme = LoadLibraryW(windows_core::w!("uxtheme.dll")).unwrap();
 
@@ -31,15 +37,25 @@ pub fn initialize_tray() -> (TrayIcon, slint::Timer) {
     let (tray_img, menu_img) = load_icon();
 
     let header = IconMenuItem::new("Lumen", true, Some(menu_img), None);
+    let always_on_top_item = CheckMenuItem::new(
+        "Always on Top",
+        true,
+        always_on_top.load(Ordering::Relaxed),
+        None,
+    );
     let check_updates = MenuItem::new("Check for Updates", true, None);
     let separator = PredefinedMenuItem::separator();
+    let settings_separator = PredefinedMenuItem::separator();
     let quit = MenuItem::new("Quit Lumen", true, None);
 
+    let always_on_top_id = always_on_top_item.id().clone();
     let check_updates_id = check_updates.id().clone();
     let quit_id = quit.id().clone();
 
     menu.append(&header).unwrap();
     menu.append(&separator).unwrap();
+    menu.append(&always_on_top_item).unwrap();
+    menu.append(&settings_separator).unwrap();
     menu.append(&check_updates).unwrap();
     menu.append(&separator).unwrap();
     menu.append(&quit).unwrap();
@@ -57,6 +73,7 @@ pub fn initialize_tray() -> (TrayIcon, slint::Timer) {
     let state_clone = state.clone();
 
     let check_updates = Arc::new(check_updates);
+    let always_on_top_item = Arc::new(always_on_top_item);
 
     let poll_timer = slint::Timer::default();
     poll_timer.start(slint::TimerMode::Repeated, Duration::from_millis(100), move || {
@@ -86,6 +103,16 @@ pub fn initialize_tray() -> (TrayIcon, slint::Timer) {
         if let Ok(event) = tray_icon::menu::MenuEvent::receiver().try_recv() {
             if event.id == quit_id {
                 slint::quit_event_loop().unwrap();
+            } else if event.id == always_on_top_id {
+                let enabled = !always_on_top.load(Ordering::Relaxed);
+                always_on_top.store(enabled, Ordering::Relaxed);
+                always_on_top_item.set_checked(enabled);
+
+                let mut settings = UserSettings::load();
+                settings.always_on_top = enabled;
+                if let Err(e) = settings.save() {
+                    eprintln!("[Settings] {e}");
+                }
             } else if event.id == check_updates_id {
                 let current = state.lock().unwrap().clone();
 

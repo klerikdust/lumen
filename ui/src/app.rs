@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Result, anyhow};
-use lumen_core::{IslandCore, RuntimeState};
+use lumen_core::{IslandCore, NotificationState, RuntimeState};
 use slint::{ComponentHandle, Weak};
 
 use crate::{
@@ -9,6 +9,8 @@ use crate::{
     state::{ContentState, IslandState},
     sync::{media_to_slint, notification_to_slint},
 };
+
+const CLEAN_INBOX_NOTIFICATION_ID: u64 = u64::MAX;
 
 #[derive(Clone)]
 pub struct Lumen {
@@ -193,10 +195,22 @@ impl Lumen {
                 self.set_expanded(payload == "true");
                 self.sync_shell();
             }
+            "show-clean-inbox" => {
+                self.show_clean_inbox();
+            }
+            "outside-click" => {
+                self.close_open_island();
+            }
             "dismiss-notification" => {
                 let Ok(id) = payload.parse::<u64>() else {
                     return;
                 };
+
+                if id == CLEAN_INBOX_NOTIFICATION_ID {
+                    self.dismiss_clean_inbox();
+                    return;
+                }
+
                 self.core.dismiss_notification(id);
             }
             "toggle-playback" => {
@@ -236,6 +250,59 @@ impl Lumen {
     fn set_content(&self, content: ContentState) {
         let mut state = self.state.lock().unwrap();
         state.content = content;
+    }
+
+    fn show_clean_inbox(&self) {
+        let mut state = self.state.lock().unwrap();
+        state.content = ContentState::Notification(NotificationState {
+            id: CLEAN_INBOX_NOTIFICATION_ID,
+            app_name: "Lumen".into(),
+            app_icon: None,
+            title: "Your inbox is clean!".into(),
+            body: String::new(),
+        });
+        state.expanded = false;
+        drop(state);
+
+        self.sync_shell();
+    }
+
+    fn dismiss_clean_inbox(&self) {
+        let mut state = self.state.lock().unwrap();
+
+        if matches!(
+            &state.content,
+            ContentState::Notification(notification)
+                if notification.id == CLEAN_INBOX_NOTIFICATION_ID
+        ) {
+            state.content = ContentState::Idle;
+            state.expanded = false;
+        }
+
+        drop(state);
+        self.sync_shell();
+    }
+
+    fn close_open_island(&self) {
+        let content = {
+            let mut state = self.state.lock().unwrap();
+            let content = state.content.clone();
+            state.expanded = false;
+            content
+        };
+
+        match content {
+            ContentState::Notification(notification) => {
+                if notification.id == CLEAN_INBOX_NOTIFICATION_ID {
+                    self.dismiss_clean_inbox();
+                } else {
+                    self.core.dismiss_notification(notification.id);
+                }
+            }
+            _ => {
+                self.sync_shell();
+            }
+        }
     }
 
     fn set_mic(&self, active: bool) {

@@ -133,8 +133,7 @@ export component Island inherits Rectangle {
         y: 8px;
 
         background: Colors.island-bg;
-        border-color: Colors.island-border;
-        border-width: Metrics.border-width;
+
         border-radius: radius;
         z: 1;
 
@@ -184,6 +183,8 @@ export component Island inherits Rectangle {
         clicked => {
             if (root.content != IslandContent.Idle) {
                 IslandData.action("expand", "true");
+            } else {
+                IslandData.action("show-clean-inbox", "");
             }
         }
     }
