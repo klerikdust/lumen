@@ -62,7 +62,7 @@ https://github.com/user-attachments/assets/167402c9-0f49-49b9-9ce6-e293aae93f75
 - **Fullscreen detection** — automatically hides when a fullscreen app is in the foreground.
 - **Clickthrough** — passes mouse input through when idle so it never interferes with your workflow.
 - **Auto-updates** — checks for new releases on startup and notifies via Windows toast.
-- **System tray** — minimal tray presence with manual update check and quit option.
+- **System tray** — minimal tray presence with always-on-top control, manual update check, and quit option.
 
 ---
 

@@ -1,5 +1,8 @@
 use std::{
-    sync::{Arc, Mutex, OnceLock},
+    sync::{
+        Arc, Mutex, OnceLock,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
@@ -10,14 +13,18 @@ use i_slint_backend_winit::{
 use slint::ComponentHandle;
 use windows::Win32::{
     Foundation::{HWND, RECT},
-    Graphics::Gdi::UpdateWindow,
+    Graphics::Gdi::{
+        GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow, UpdateWindow,
+    },
     UI::{
         HiDpi::GetDpiForWindow,
+        Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON},
         WindowsAndMessaging::{
-            GWL_EXSTYLE, GWL_STYLE, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect,
-            HWND_TOPMOST, LWA_ALPHA, SM_CXSCREEN, SW_HIDE, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED,
-            SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SetLayeredWindowAttributes, SetWindowLongPtrW,
-            SetWindowPos, ShowWindow, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_POPUP,
+            GWL_EXSTYLE, GWL_STYLE, GetWindowLongPtrW, GetWindowRect, HWND_NOTOPMOST,
+            HWND_TOPMOST, LWA_ALPHA, SW_HIDE, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+            SWP_NOMOVE, SWP_NOSIZE, SetLayeredWindowAttributes, SetWindowLongPtrW, SetWindowPos,
+            ShowWindow, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+            WS_POPUP,
         },
     },
 };
@@ -33,13 +40,16 @@ use crate::{
 };
 
 static WINDOW_HWND: OnceLock<isize> = OnceLock::new();
+const WINDOW_TOP_OFFSET: i32 = 40;
 
 pub fn initialize_window<T>(
     component: &T,
     width: i32,
     height: i32,
     state: Arc<Mutex<IslandState>>,
+    always_on_top: Arc<AtomicBool>,
     get_collapsed: impl Fn() -> bool + Send + 'static,
+    handle_outside_click: impl FnMut() + Send + 'static,
 ) where
     T: ComponentHandle + 'static,
 {
@@ -48,8 +58,9 @@ pub fn initialize_window<T>(
     slint::Timer::single_shot(Duration::from_millis(200), move || {
         if let Some(component) = weak.upgrade() {
             with_hwnd(&component, |hwnd| unsafe {
-                configure_window(hwnd);
-                position_top_center(hwnd, width, height);
+                let topmost = always_on_top.load(Ordering::Relaxed);
+                configure_window(hwnd, topmost);
+                position_top_center(hwnd, width, height, topmost);
 
                 WINDOW_HWND.set(hwnd.0 as isize).ok();
                 set_clickthrough(hwnd, true);
@@ -57,7 +68,15 @@ pub fn initialize_window<T>(
                 let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
                 let _ = UpdateWindow(hwnd);
 
-                start_clickthrough_loop(hwnd, state.clone(), get_collapsed);
+                start_clickthrough_loop(
+                    hwnd,
+                    width,
+                    height,
+                    state.clone(),
+                    always_on_top.clone(),
+                    get_collapsed,
+                    handle_outside_click,
+                );
             });
         }
     });
@@ -77,7 +96,7 @@ where
     });
 }
 
-unsafe fn configure_window(hwnd: HWND) {
+unsafe fn configure_window(hwnd: HWND, always_on_top: bool) {
     let style = WS_POPUP.0 as isize;
 
     unsafe {
@@ -88,6 +107,7 @@ unsafe fn configure_window(hwnd: HWND) {
         ex_style &= !(WS_EX_APPWINDOW.0 as isize);
         ex_style |= WS_EX_TOOLWINDOW.0 as isize;
         ex_style |= WS_EX_LAYERED.0 as isize;
+        ex_style |= WS_EX_NOACTIVATE.0 as isize;
 
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style);
 
@@ -100,7 +120,7 @@ unsafe fn configure_window(hwnd: HWND) {
 
         SetWindowPos(
             hwnd,
-            Some(HWND_TOPMOST),
+            Some(window_level(always_on_top)),
             0,
             0,
             0,
@@ -111,15 +131,15 @@ unsafe fn configure_window(hwnd: HWND) {
     }
 }
 
-unsafe fn position_top_center(hwnd: HWND, width: i32, height: i32) {
+unsafe fn position_top_center(hwnd: HWND, width: i32, height: i32, always_on_top: bool) {
     unsafe {
-        let screen_width = GetSystemMetrics(SM_CXSCREEN);
+        let placement = top_center_placement(hwnd, width, height);
 
         SetWindowPos(
             hwnd,
-            Some(HWND_TOPMOST),
-            (screen_width - width) / 2,
-            0,
+            Some(window_level(always_on_top)),
+            placement.x,
+            placement.y,
             width,
             height,
             SWP_NOACTIVATE,
@@ -128,16 +148,82 @@ unsafe fn position_top_center(hwnd: HWND, width: i32, height: i32) {
     }
 }
 
+fn window_level(always_on_top: bool) -> HWND {
+    if always_on_top { HWND_TOPMOST } else { HWND_NOTOPMOST }
+}
+
+struct WindowPlacement {
+    x: i32,
+    y: i32,
+}
+
+unsafe fn top_center_placement(hwnd: HWND, width: i32, _height: i32) -> WindowPlacement {
+    unsafe {
+        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        let mut monitor_info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+
+        if GetMonitorInfoW(monitor, &mut monitor_info).as_bool() {
+            let monitor_rect = monitor_info.rcMonitor;
+            return WindowPlacement {
+                x: monitor_rect.left + ((monitor_rect.right - monitor_rect.left) - width) / 2,
+                y: monitor_rect.top + WINDOW_TOP_OFFSET,
+            };
+        }
+
+        WindowPlacement { x: 0, y: WINDOW_TOP_OFFSET }
+    }
+}
+
+unsafe fn enforce_top_center(
+    hwnd: HWND,
+    width: i32,
+    height: i32,
+    always_on_top: bool,
+    force_level: bool,
+) {
+    unsafe {
+        let placement = top_center_placement(hwnd, width, height);
+        let mut rect = RECT::default();
+        let moved = GetWindowRect(hwnd, &mut rect).is_ok()
+            && (rect.left != placement.x
+                || rect.top != placement.y
+                || rect.right - rect.left != width
+                || rect.bottom - rect.top != height);
+
+        if moved || force_level {
+            SetWindowPos(
+                hwnd,
+                Some(window_level(always_on_top)),
+                placement.x,
+                placement.y,
+                width,
+                height,
+                SWP_NOACTIVATE,
+            )
+            .ok();
+        }
+    }
+}
+
 unsafe fn start_clickthrough_loop(
     hwnd: HWND,
+    width: i32,
+    height: i32,
     state: Arc<Mutex<IslandState>>,
+    always_on_top: Arc<AtomicBool>,
     get_collapsed: impl Fn() -> bool + Send + 'static,
+    mut handle_outside_click: impl FnMut() + Send + 'static,
 ) {
     let timer = Box::leak(Box::new(slint::Timer::default()));
 
     let mut clickthrough_enabled = true;
+    let mut left_mouse_down = false;
 
     let mut hidden_for_fullscreen = false;
+    let mut window_topmost = always_on_top.load(Ordering::Relaxed);
 
     timer.start(slint::TimerMode::Repeated, Duration::from_millis(16), move || {
         let fullscreen = is_foreground_fullscreen(hwnd);
@@ -155,17 +241,16 @@ unsafe fn start_clickthrough_loop(
             hidden_for_fullscreen = false;
         }
 
+        let requested_topmost = always_on_top.load(Ordering::Relaxed);
+
         unsafe {
-            SetWindowPos(
+            enforce_top_center(
                 hwnd,
-                Some(HWND_TOPMOST),
-                0,
-                0,
-                0,
-                0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
-            )
-            .ok();
+                width,
+                height,
+                requested_topmost,
+                requested_topmost || requested_topmost != window_topmost,
+            );
         }
 
         let (mx, my) = cursor_position();
@@ -176,11 +261,11 @@ unsafe fn start_clickthrough_loop(
             GetWindowRect(hwnd, &mut rect).ok();
         }
 
-        let (logical, has_active) = {
+        let (logical, close_on_outside_click) = {
             let state = state.lock().unwrap();
             (
                 state.clone().bounds(),
-                state.mic || state.camera || state.content != ContentState::Idle,
+                state.expanded || matches!(state.content, ContentState::Notification(_)),
             )
         };
         let collapsed = get_collapsed();
@@ -202,11 +287,13 @@ unsafe fn start_clickthrough_loop(
         let px = mx - island_left;
         let py = my - island_top;
 
-        let inside = if !collapsed && !has_active {
-            false
-        } else {
-            point_inside_pill(px, py, bounds.width, bounds.height, bounds.radius)
-        };
+        let inside = point_inside_pill(px, py, bounds.width, bounds.height, bounds.radius);
+        let mouse_down = unsafe { left_mouse_button_down() };
+
+        if mouse_down && !left_mouse_down && !inside && close_on_outside_click {
+            handle_outside_click();
+        }
+        left_mouse_down = mouse_down;
 
         unsafe {
             if inside && clickthrough_enabled {
@@ -219,5 +306,11 @@ unsafe fn start_clickthrough_loop(
                 clickthrough_enabled = true;
             }
         }
+
+        window_topmost = requested_topmost;
     });
+}
+
+unsafe fn left_mouse_button_down() -> bool {
+    unsafe { GetAsyncKeyState(VK_LBUTTON.0 as i32) < 0 }
 }
